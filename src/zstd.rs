@@ -31,7 +31,7 @@ use zstd::zstd_safe::{MAGICNUMBER, MAGIC_SKIPPABLE_MASK, MAGIC_SKIPPABLE_START};
 
 use crate::PeekReader;
 
-pub struct ZstdStreamDecoder<'a, R: BufRead> {
+pub(crate) struct ZstdStreamDecoder<'a, R: BufRead> {
     source: PeekReader<R>,
     buf: BytesMut,
     decoder: Decoder<'a>,
@@ -39,7 +39,7 @@ pub struct ZstdStreamDecoder<'a, R: BufRead> {
 }
 
 impl<R: BufRead> ZstdStreamDecoder<'_, R> {
-    pub fn new(source: PeekReader<R>) -> Result<Self> {
+    pub(crate) fn new(source: PeekReader<R>) -> Result<Self> {
         Ok(Self {
             source,
             buf: BytesMut::new(),
@@ -48,11 +48,11 @@ impl<R: BufRead> ZstdStreamDecoder<'_, R> {
         })
     }
 
-    pub fn get_mut(&mut self) -> &mut PeekReader<R> {
+    pub(crate) fn get_mut(&mut self) -> &mut PeekReader<R> {
         &mut self.source
     }
 
-    pub fn into_inner(self) -> PeekReader<R> {
+    pub(crate) fn into_inner(self) -> PeekReader<R> {
         self.source
     }
 }
@@ -97,7 +97,7 @@ impl<R: BufRead> Read for ZstdStreamDecoder<'_, R> {
     }
 }
 
-pub fn is_zstd_magic(buf: [u8; 4]) -> bool {
+pub(crate) fn is_zstd_magic(buf: [u8; 4]) -> bool {
     let val = u32::from_le_bytes(buf);
     val == MAGICNUMBER || val & MAGIC_SKIPPABLE_MASK == MAGIC_SKIPPABLE_START
 }

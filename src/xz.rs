@@ -25,24 +25,24 @@ use bytes::{Buf, BufMut, BytesMut};
 use std::io::{self, BufRead, Read, Write};
 use xz2::write::XzDecoder;
 
-pub struct XzStreamDecoder<R: BufRead> {
+pub(crate) struct XzStreamDecoder<R: BufRead> {
     source: R,
     decompressor: XzDecoder<bytes::buf::Writer<BytesMut>>,
 }
 
 impl<R: BufRead> XzStreamDecoder<R> {
-    pub fn new(source: R) -> Self {
+    pub(crate) fn new(source: R) -> Self {
         Self {
             source,
             decompressor: XzDecoder::new(BytesMut::new().writer()),
         }
     }
 
-    pub fn get_mut(&mut self) -> &mut R {
+    pub(crate) fn get_mut(&mut self) -> &mut R {
         &mut self.source
     }
 
-    pub fn into_inner(self) -> R {
+    pub(crate) fn into_inner(self) -> R {
         self.source
     }
 }
