@@ -110,7 +110,7 @@ mod tests {
     #[test]
     fn small_decode() {
         let mut compressed = Vec::new();
-        compressed.extend(include_bytes!("../fixtures/1M.zst"));
+        compressed.extend(include_bytes!("../../fixtures/1M.zst"));
         let uncompressed = zstd::stream::decode_all(&*compressed).unwrap();
         compressed.extend(b"abcdefg");
 

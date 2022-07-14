@@ -16,13 +16,11 @@ use anyhow::{Context, Result};
 use flate2::bufread::GzDecoder;
 use std::io::{self, BufRead, ErrorKind, Read, Seek};
 
+mod format;
 mod peek;
-mod xz;
-mod zstd;
 
+use self::format::*;
 use self::peek::*;
-use self::xz::*;
-use self::zstd::*;
 
 enum Format<'a, R: BufRead> {
     Uncompressed(PeekReader<R>),
