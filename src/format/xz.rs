@@ -25,6 +25,7 @@ use bytes::{Buf, BufMut, BytesMut};
 use std::io::{self, BufRead, Read, Write};
 use xz2::write::XzDecoder;
 
+use super::FormatReader;
 use crate::PeekReader;
 
 pub(crate) struct XzReader<R: BufRead> {
@@ -39,12 +40,14 @@ impl<R: BufRead> XzReader<R> {
             decompressor: XzDecoder::new(BytesMut::new().writer()),
         }
     }
+}
 
-    pub(crate) fn get_mut(&mut self) -> &mut PeekReader<R> {
+impl<R: BufRead> FormatReader<R> for XzReader<R> {
+    fn get_mut(&mut self) -> &mut PeekReader<R> {
         &mut self.source
     }
 
-    pub(crate) fn into_inner(self) -> PeekReader<R> {
+    fn into_inner(self) -> PeekReader<R> {
         self.source
     }
 }

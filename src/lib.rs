@@ -13,7 +13,7 @@
 // limitations under the License.
 
 use anyhow::{Context, Result};
-use flate2::bufread::GzDecoder;
+use enum_dispatch::enum_dispatch;
 use std::io::{self, BufRead, ErrorKind, Read, Seek};
 
 mod format;
@@ -22,9 +22,10 @@ mod peek;
 use self::format::*;
 use self::peek::*;
 
+#[enum_dispatch]
 enum Format<'a, R: BufRead> {
-    Uncompressed(PeekReader<R>),
-    Gzip(GzDecoder<PeekReader<R>>),
+    Uncompressed(UncompressedReader<R>),
+    Gzip(GzipReader<R>),
     Xz(XzReader<R>),
     Zstd(ZstdReader<'a, R>),
 }
@@ -45,17 +46,16 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 
     fn new_full(source: R, allow_trailing: bool) -> Result<Self> {
-        use Format::*;
         let mut source = PeekReader::new(source);
         let sniff = source.peek(6).context("sniffing input")?;
         let reader = if sniff.len() >= 2 && &sniff[0..2] == b"\x1f\x8b" {
-            Gzip(GzDecoder::new(source))
+            GzipReader::new(source).into()
         } else if sniff.len() >= 6 && &sniff[0..6] == b"\xfd7zXZ\x00" {
-            Xz(XzReader::new(source))
+            XzReader::new(source).into()
         } else if sniff.len() > 4 && is_zstd_magic(sniff[0..4].try_into().unwrap()) {
-            Zstd(ZstdReader::new(source)?)
+            ZstdReader::new(source)?.into()
         } else {
-            Uncompressed(source)
+            UncompressedReader::new(source).into()
         };
         Ok(Self {
             reader,
@@ -64,27 +64,11 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 
     pub fn into_reader(self) -> impl BufRead {
-        self.into_inner()
-    }
-
-    fn into_inner(self) -> PeekReader<R> {
-        use Format::*;
-        match self.reader {
-            Uncompressed(d) => d,
-            Gzip(d) => d.into_inner(),
-            Xz(d) => d.into_inner(),
-            Zstd(d) => d.into_inner(),
-        }
+        self.reader.into_inner()
     }
 
     fn get_peek_mut(&mut self) -> &mut PeekReader<R> {
-        use Format::*;
-        match &mut self.reader {
-            Uncompressed(d) => d,
-            Gzip(d) => d.get_mut(),
-            Xz(d) => d.get_mut(),
-            Zstd(d) => d.get_mut(),
-        }
+        self.reader.get_mut()
     }
 
     pub fn compressed(&self) -> bool {
@@ -100,12 +84,14 @@ impl<R: BufRead> DecompressReader<'_, R> {
 
 impl<R: BufRead + Seek> DecompressReader<'_, R> {
     pub fn into_read_seeker(self) -> impl BufRead + Seek {
-        self.into_inner()
+        self.reader.into_inner()
     }
 }
 
 impl<R: BufRead> Read for DecompressReader<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
+        // enum_dispatch doesn't support supertraits
+        // https://gitlab.com/antonok/enum_dispatch/-/issues/56
         use Format::*;
         let count = match &mut self.reader {
             Uncompressed(d) => d.read(buf)?,

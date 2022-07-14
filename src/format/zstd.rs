@@ -29,6 +29,7 @@ use std::io::{self, BufRead, Error, ErrorKind, Read};
 use zstd::stream::raw::{Decoder, Operation};
 use zstd::zstd_safe::{MAGICNUMBER, MAGIC_SKIPPABLE_MASK, MAGIC_SKIPPABLE_START};
 
+use super::FormatReader;
 use crate::PeekReader;
 
 pub(crate) struct ZstdReader<'a, R: BufRead> {
@@ -47,12 +48,14 @@ impl<R: BufRead> ZstdReader<'_, R> {
             start_of_frame: true,
         })
     }
+}
 
-    pub(crate) fn get_mut(&mut self) -> &mut PeekReader<R> {
+impl<R: BufRead> FormatReader<R> for ZstdReader<'_, R> {
+    fn get_mut(&mut self) -> &mut PeekReader<R> {
         &mut self.source
     }
 
-    pub(crate) fn into_inner(self) -> PeekReader<R> {
+    fn into_inner(self) -> PeekReader<R> {
         self.source
     }
 }

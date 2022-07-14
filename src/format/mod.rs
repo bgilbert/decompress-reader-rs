@@ -12,8 +12,25 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use enum_dispatch::enum_dispatch;
+use std::io::BufRead;
+
+use crate::PeekReader;
+
+pub(crate) mod gzip;
+pub(crate) mod uncompressed;
 pub(crate) mod xz;
 pub(crate) mod zstd;
 
+pub(crate) use self::gzip::*;
+pub(crate) use self::uncompressed::*;
 pub(crate) use self::xz::*;
 pub(crate) use self::zstd::*;
+
+#[enum_dispatch(Format<R>)]
+// We'd like Read as a supertrait but enum_dispatch doesn't support it
+// https://gitlab.com/antonok/enum_dispatch/-/issues/56
+pub(crate) trait FormatReader<R: BufRead> {
+    fn get_mut(&mut self) -> &mut PeekReader<R>;
+    fn into_inner(self) -> PeekReader<R>;
+}
