@@ -24,15 +24,15 @@ use self::peek::*;
 use self::xz::*;
 use self::zstd::*;
 
-enum CompressDecoder<'a, R: BufRead> {
+enum Format<'a, R: BufRead> {
     Uncompressed(PeekReader<R>),
     Gzip(GzDecoder<PeekReader<R>>),
-    Xz(XzStreamDecoder<R>),
-    Zstd(ZstdStreamDecoder<'a, R>),
+    Xz(XzReader<R>),
+    Zstd(ZstdReader<'a, R>),
 }
 
 pub struct DecompressReader<'a, R: BufRead> {
-    decoder: CompressDecoder<'a, R>,
+    reader: Format<'a, R>,
     allow_trailing: bool,
 }
 
@@ -47,20 +47,20 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 
     fn new_full(source: R, allow_trailing: bool) -> Result<Self> {
-        use CompressDecoder::*;
+        use Format::*;
         let mut source = PeekReader::new(source);
         let sniff = source.peek(6).context("sniffing input")?;
-        let decoder = if sniff.len() >= 2 && &sniff[0..2] == b"\x1f\x8b" {
+        let reader = if sniff.len() >= 2 && &sniff[0..2] == b"\x1f\x8b" {
             Gzip(GzDecoder::new(source))
         } else if sniff.len() >= 6 && &sniff[0..6] == b"\xfd7zXZ\x00" {
-            Xz(XzStreamDecoder::new(source))
+            Xz(XzReader::new(source))
         } else if sniff.len() > 4 && is_zstd_magic(sniff[0..4].try_into().unwrap()) {
-            Zstd(ZstdStreamDecoder::new(source)?)
+            Zstd(ZstdReader::new(source)?)
         } else {
             Uncompressed(source)
         };
         Ok(Self {
-            decoder,
+            reader,
             allow_trailing,
         })
     }
@@ -70,8 +70,8 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 
     fn into_inner(self) -> PeekReader<R> {
-        use CompressDecoder::*;
-        match self.decoder {
+        use Format::*;
+        match self.reader {
             Uncompressed(d) => d,
             Gzip(d) => d.into_inner(),
             Xz(d) => d.into_inner(),
@@ -80,8 +80,8 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 
     fn get_peek_mut(&mut self) -> &mut PeekReader<R> {
-        use CompressDecoder::*;
-        match &mut self.decoder {
+        use Format::*;
+        match &mut self.reader {
             Uncompressed(d) => d,
             Gzip(d) => d.get_mut(),
             Xz(d) => d.get_mut(),
@@ -90,8 +90,8 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 
     pub fn compressed(&self) -> bool {
-        use CompressDecoder::*;
-        match &self.decoder {
+        use Format::*;
+        match &self.reader {
             Uncompressed(_) => false,
             Gzip(_) => true,
             Xz(_) => true,
@@ -108,8 +108,8 @@ impl<R: BufRead + Seek> DecompressReader<'_, R> {
 
 impl<R: BufRead> Read for DecompressReader<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
-        use CompressDecoder::*;
-        let count = match &mut self.decoder {
+        use Format::*;
+        let count = match &mut self.reader {
             Uncompressed(d) => d.read(buf)?,
             Gzip(d) => d.read(buf)?,
             Xz(d) => d.read(buf)?,

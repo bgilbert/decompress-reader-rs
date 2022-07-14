@@ -31,14 +31,14 @@ use zstd::zstd_safe::{MAGICNUMBER, MAGIC_SKIPPABLE_MASK, MAGIC_SKIPPABLE_START};
 
 use crate::PeekReader;
 
-pub(crate) struct ZstdStreamDecoder<'a, R: BufRead> {
+pub(crate) struct ZstdReader<'a, R: BufRead> {
     source: PeekReader<R>,
     buf: BytesMut,
     decoder: Decoder<'a>,
     start_of_frame: bool,
 }
 
-impl<R: BufRead> ZstdStreamDecoder<'_, R> {
+impl<R: BufRead> ZstdReader<'_, R> {
     pub(crate) fn new(source: PeekReader<R>) -> Result<Self> {
         Ok(Self {
             source,
@@ -57,7 +57,7 @@ impl<R: BufRead> ZstdStreamDecoder<'_, R> {
     }
 }
 
-impl<R: BufRead> Read for ZstdStreamDecoder<'_, R> {
+impl<R: BufRead> Read for ZstdReader<'_, R> {
     fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
         if out.is_empty() {
             return Ok(0);
@@ -115,8 +115,7 @@ mod tests {
         compressed.extend(b"abcdefg");
 
         let mut d =
-            ZstdStreamDecoder::new(PeekReader::new(BufReader::with_capacity(1, &*compressed)))
-                .unwrap();
+            ZstdReader::new(PeekReader::new(BufReader::with_capacity(1, &*compressed))).unwrap();
         let mut out = Vec::new();
         let mut buf = [0u8];
         loop {
