@@ -14,7 +14,7 @@
 
 use anyhow::{Context, Result};
 use flate2::bufread::GzDecoder;
-use std::io::{self, BufRead, ErrorKind, Read};
+use std::io::{self, BufRead, ErrorKind, Read, Seek};
 
 mod peek;
 mod xz;
@@ -38,16 +38,17 @@ pub struct DecompressReader<'a, R: BufRead> {
 
 /// Format-sniffing decompressor
 impl<R: BufRead> DecompressReader<'_, R> {
-    pub fn new(source: PeekReader<R>) -> Result<Self> {
+    pub fn new(source: R) -> Result<Self> {
         Self::new_full(source, false)
     }
 
-    pub fn for_concatenated(source: PeekReader<R>) -> Result<Self> {
+    pub fn for_concatenated(source: R) -> Result<Self> {
         Self::new_full(source, true)
     }
 
-    fn new_full(mut source: PeekReader<R>, allow_trailing: bool) -> Result<Self> {
+    fn new_full(source: R, allow_trailing: bool) -> Result<Self> {
         use CompressDecoder::*;
+        let mut source = PeekReader::new(source);
         let sniff = source.peek(6).context("sniffing input")?;
         let decoder = if sniff.len() >= 2 && &sniff[0..2] == b"\x1f\x8b" {
             Gzip(GzDecoder::new(source))
@@ -64,7 +65,11 @@ impl<R: BufRead> DecompressReader<'_, R> {
         })
     }
 
-    pub fn into_inner(self) -> PeekReader<R> {
+    pub fn into_reader(self) -> impl BufRead {
+        self.into_inner()
+    }
+
+    fn into_inner(self) -> PeekReader<R> {
         use CompressDecoder::*;
         match self.decoder {
             Uncompressed(d) => d,
@@ -74,7 +79,7 @@ impl<R: BufRead> DecompressReader<'_, R> {
         }
     }
 
-    pub fn get_mut(&mut self) -> &mut PeekReader<R> {
+    fn get_peek_mut(&mut self) -> &mut PeekReader<R> {
         use CompressDecoder::*;
         match &mut self.decoder {
             Uncompressed(d) => d,
@@ -95,6 +100,12 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 }
 
+impl<R: BufRead + Seek> DecompressReader<'_, R> {
+    pub fn into_read_seeker(self) -> impl BufRead + Seek {
+        self.into_inner()
+    }
+}
+
 impl<R: BufRead> Read for DecompressReader<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         use CompressDecoder::*;
@@ -109,7 +120,7 @@ impl<R: BufRead> Read for DecompressReader<'_, R> {
             // compression trailer, so they don't notice trailing data,
             // which indicates something wrong with the input.  Look for
             // one more byte, and fail if there is one.
-            if !self.get_mut().peek(1)?.is_empty() {
+            if !self.get_peek_mut().peek(1)?.is_empty() {
                 return Err(io::Error::new(
                     ErrorKind::InvalidData,
                     "found trailing data after compressed stream",
@@ -139,35 +150,30 @@ mod tests {
         let mut output = Vec::new();
 
         // successful run
-        DecompressReader::new(PeekReader::new(BufReader::with_capacity(32, &*input)))
+        DecompressReader::new(BufReader::with_capacity(32, &*input))
             .unwrap()
             .read_to_end(&mut output)
             .unwrap();
 
         // drop last byte, make sure we notice
-        DecompressReader::new(PeekReader::new(BufReader::with_capacity(
-            32,
-            &input[0..input.len() - 1],
-        )))
-        .unwrap()
-        .read_to_end(&mut output)
-        .unwrap_err();
+        DecompressReader::new(BufReader::with_capacity(32, &input[0..input.len() - 1]))
+            .unwrap()
+            .read_to_end(&mut output)
+            .unwrap_err();
 
         // add trailing garbage, make sure we notice
         input.push(0);
-        DecompressReader::new(PeekReader::new(BufReader::with_capacity(32, &*input)))
+        DecompressReader::new(BufReader::with_capacity(32, &*input))
             .unwrap()
             .read_to_end(&mut output)
             .unwrap_err();
 
         // use concatenated mode, make sure we ignore trailing garbage
-        let mut reader = DecompressReader::for_concatenated(PeekReader::new(
-            BufReader::with_capacity(32, &*input),
-        ))
-        .unwrap();
+        let mut reader =
+            DecompressReader::for_concatenated(BufReader::with_capacity(32, &*input)).unwrap();
         reader.read_to_end(&mut output).unwrap();
         let mut remainder = Vec::new();
-        reader.into_inner().read_to_end(&mut remainder).unwrap();
+        reader.into_reader().read_to_end(&mut remainder).unwrap();
         assert_eq!(&remainder, &[0]);
     }
 }
