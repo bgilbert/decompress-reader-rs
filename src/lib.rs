@@ -127,13 +127,13 @@ mod tests {
     /// Test that DecompressReader fails if data is appended to the
     /// compressed stream.
     #[test]
-    fn test_decompress_reader_trailing_data() {
-        test_decompress_reader_trailing_data_one(&include_bytes!("../fixtures/1M.gz")[..]);
-        test_decompress_reader_trailing_data_one(&include_bytes!("../fixtures/1M.xz")[..]);
-        test_decompress_reader_trailing_data_one(&include_bytes!("../fixtures/1M.zst")[..]);
+    fn trailing_data() {
+        trailing_data_one(&include_bytes!("../fixtures/1M.gz")[..]);
+        trailing_data_one(&include_bytes!("../fixtures/1M.xz")[..]);
+        trailing_data_one(&include_bytes!("../fixtures/1M.zst")[..]);
     }
 
-    fn test_decompress_reader_trailing_data_one(input: &[u8]) {
+    fn trailing_data_one(input: &[u8]) {
         let mut input = input.to_vec();
         let mut output = Vec::new();
 
