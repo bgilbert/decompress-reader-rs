@@ -22,10 +22,8 @@
 // https://github.com/alexcrichton/xz2-rs/pull/86
 
 use bytes::{Buf, BufMut, BytesMut};
-use std::io::{self, BufRead, Read};
+use std::io::{self, BufRead, Read, Write};
 use xz2::write::XzDecoder;
-
-use crate::io::*;
 
 pub struct XzStreamDecoder<R: BufRead> {
     source: R,
