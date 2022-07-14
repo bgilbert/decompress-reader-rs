@@ -25,24 +25,26 @@ use bytes::{Buf, BufMut, BytesMut};
 use std::io::{self, BufRead, Read, Write};
 use xz2::write::XzDecoder;
 
+use crate::PeekReader;
+
 pub(crate) struct XzStreamDecoder<R: BufRead> {
-    source: R,
+    source: PeekReader<R>,
     decompressor: XzDecoder<bytes::buf::Writer<BytesMut>>,
 }
 
 impl<R: BufRead> XzStreamDecoder<R> {
-    pub(crate) fn new(source: R) -> Self {
+    pub(crate) fn new(source: PeekReader<R>) -> Self {
         Self {
             source,
             decompressor: XzDecoder::new(BytesMut::new().writer()),
         }
     }
 
-    pub(crate) fn get_mut(&mut self) -> &mut R {
+    pub(crate) fn get_mut(&mut self) -> &mut PeekReader<R> {
         &mut self.source
     }
 
-    pub(crate) fn into_inner(self) -> R {
+    pub(crate) fn into_inner(self) -> PeekReader<R> {
         self.source
     }
 }
@@ -94,7 +96,8 @@ mod tests {
             .unwrap();
         compressed.extend(b"abcdefg");
 
-        let mut d = XzStreamDecoder::new(BufReader::with_capacity(1, &*compressed));
+        let mut d =
+            XzStreamDecoder::new(PeekReader::new(BufReader::with_capacity(1, &*compressed)));
         let mut out = Vec::new();
         let mut buf = [0u8];
         loop {

@@ -27,7 +27,7 @@ use self::zstd::*;
 enum CompressDecoder<'a, R: BufRead> {
     Uncompressed(PeekReader<R>),
     Gzip(GzDecoder<PeekReader<R>>),
-    Xz(XzStreamDecoder<PeekReader<R>>),
+    Xz(XzStreamDecoder<R>),
     Zstd(ZstdStreamDecoder<'a, R>),
 }
 
