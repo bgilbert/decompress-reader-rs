@@ -29,7 +29,7 @@ use std::io::{self, BufRead, Error, ErrorKind, Read};
 use zstd::stream::raw::{Decoder, Operation};
 use zstd::zstd_safe::{MAGICNUMBER, MAGIC_SKIPPABLE_MASK, MAGIC_SKIPPABLE_START};
 
-use crate::io::PeekReader;
+use crate::PeekReader;
 
 pub struct ZstdStreamDecoder<'a, R: Read> {
     source: PeekReader<R>,
@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn small_decode() {
         let mut compressed = Vec::new();
-        compressed.extend(include_bytes!("../../fixtures/verify/1M.zst"));
+        compressed.extend(include_bytes!("../fixtures/1M.zst"));
         let uncompressed = zstd::stream::decode_all(&*compressed).unwrap();
         compressed.extend(b"abcdefg");
 

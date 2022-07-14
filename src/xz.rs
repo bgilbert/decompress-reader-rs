@@ -89,7 +89,7 @@ mod tests {
     #[test]
     fn small_decode() {
         let mut compressed = Vec::new();
-        compressed.extend(include_bytes!("../../fixtures/verify/1M.xz"));
+        compressed.extend(include_bytes!("../fixtures/1M.xz"));
         let mut uncompressed = Vec::new();
         XzDecoder::new(&*compressed)
             .read_to_end(&mut uncompressed)

@@ -1,0 +1,27 @@
+[package]
+name = "decompress-reader"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.58.0"
+repository = "https://github.com/bgilbert/decompress-reader-rs"
+license = "Apache-2.0"
+exclude = ["/.github", "/.gitignore"]
+authors = [ "Benjamin Gilbert <bgilbert@redhat.com>" ]
+description = "Decompressing reader"
+
+[package.metadata.release]
+sign-commit = true
+sign-tag = true
+push = false
+publish = false
+pre-release-commit-message = "cargo: decompress-reader release {{version}}"
+tag-message = "decompress-reader v{{version}}"
+
+[features]
+
+[dependencies]
+anyhow = ">= 1.0.38, < 2"
+bytes = ">= 1.0.1, < 2"
+flate2 = "^1.0"
+xz2 = "^0.1"
+zstd = { version = ">= 0.10.0, < 0.12.0", features = ["pkg-config"] }

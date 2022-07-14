@@ -16,7 +16,13 @@ use anyhow::{Context, Result};
 use flate2::bufread::GzDecoder;
 use std::io::{self, ErrorKind, Read};
 
-use crate::io::{is_zstd_magic, PeekReader, XzStreamDecoder, ZstdStreamDecoder};
+mod peek;
+mod xz;
+mod zstd;
+
+use self::peek::*;
+use self::xz::*;
+use self::zstd::*;
 
 enum CompressDecoder<'a, R: Read> {
     Uncompressed(PeekReader<R>),
@@ -122,15 +128,9 @@ mod tests {
     /// compressed stream.
     #[test]
     fn test_decompress_reader_trailing_data() {
-        test_decompress_reader_trailing_data_one(
-            &include_bytes!("../../fixtures/verify/1M.gz")[..],
-        );
-        test_decompress_reader_trailing_data_one(
-            &include_bytes!("../../fixtures/verify/1M.xz")[..],
-        );
-        test_decompress_reader_trailing_data_one(
-            &include_bytes!("../../fixtures/verify/1M.zst")[..],
-        );
+        test_decompress_reader_trailing_data_one(&include_bytes!("../fixtures/1M.gz")[..]);
+        test_decompress_reader_trailing_data_one(&include_bytes!("../fixtures/1M.xz")[..]);
+        test_decompress_reader_trailing_data_one(&include_bytes!("../fixtures/1M.zst")[..]);
     }
 
     fn test_decompress_reader_trailing_data_one(input: &[u8]) {
