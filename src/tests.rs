@@ -81,7 +81,6 @@ fn gzip() {
 #[cfg(feature = "xz")]
 fn xz() {
     test_set(&*XZ_FIXTURES);
-
     // test the underlying reader one byte at a time
     small_decode(
         XzReader::new(small_decode_make(XZ_FIXTURES.get("random").unwrap())),
@@ -93,17 +92,8 @@ fn xz() {
 #[cfg(feature = "zstd")]
 fn zstd() {
     test_set(&*ZSTD_FIXTURES);
-
     // test with multiple frames
-    let mut input = Vec::new();
-    let mut expected = Vec::new();
-    let uncompressed = get_expected("random");
-    for _ in 0..3 {
-        input.extend(*ZSTD_FIXTURES.get("random").unwrap());
-        expected.extend(&uncompressed);
-    }
-    test_case("multiple frames", &input, &expected);
-
+    test_concatenated_inputs(&*ZSTD_FIXTURES);
     // test the underlying reader one byte at a time
     small_decode(
         ZstdReader::new(small_decode_make(ZSTD_FIXTURES.get("random").unwrap())).unwrap(),
@@ -163,6 +153,17 @@ fn test_case(name: &str, input: &[u8], expected: &[u8]) {
     let mut remainder = Vec::new();
     reader.into_reader().read_to_end(&mut remainder).unwrap();
     assert_eq!(&remainder, &[12]);
+}
+
+fn test_concatenated_inputs(cases: &HashMap<&str, &[u8]>) {
+    let mut input = Vec::new();
+    let mut expected = Vec::new();
+    let uncompressed = get_expected("random");
+    for _ in 0..3 {
+        input.extend(*cases.get("random").unwrap());
+        expected.extend(&uncompressed);
+    }
+    test_case("concatenated random", &input, &expected);
 }
 
 fn small_decode<T: Read + FormatReader<BufReader<Cursor<Vec<u8>>>>>(mut d: T, expected: &[u8]) {
