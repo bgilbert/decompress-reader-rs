@@ -103,9 +103,9 @@ mod tests {
     #[test]
     fn small_decode() {
         small_decode_one(
-            include_bytes!("../../fixtures/1M.gz"),
+            include_bytes!("../../fixtures/large.gz"),
             XzReader::new(small_decode_one_make(include_bytes!(
-                "../../fixtures/1M.xz"
+                "../../fixtures/large.xz"
             ))),
         );
     }
