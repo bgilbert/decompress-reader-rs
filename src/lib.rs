@@ -25,6 +25,18 @@ pub use self::config::*;
 use self::format::*;
 use self::peek::*;
 
+#[non_exhaustive]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum CompressionFormat {
+    Uncompressed,
+    #[cfg(feature = "gzip")]
+    Gzip,
+    #[cfg(feature = "xz")]
+    Xz,
+    #[cfg(feature = "zstd")]
+    Zstd,
+}
+
 #[enum_dispatch]
 enum Format<'a, R: BufRead> {
     Uncompressed(UncompressedReader<'a, R>),
@@ -88,8 +100,8 @@ impl<'a, R: BufRead> DecompressReader<'a, R> {
         self.reader.get_mut()
     }
 
-    pub fn compressed(&self) -> bool {
-        !matches!(&self.reader, Format::Uncompressed(_))
+    pub fn format(&self) -> CompressionFormat {
+        self.reader.as_primitive()
     }
 }
 
@@ -113,7 +125,11 @@ impl<R: BufRead> Read for DecompressReader<'_, R> {
             #[cfg(feature = "zstd")]
             Zstd(d) => d.read(buf)?,
         };
-        if count == 0 && !buf.is_empty() && self.compressed() && !self.config.trailing_data {
+        if count == 0
+            && !buf.is_empty()
+            && self.format() != CompressionFormat::Uncompressed
+            && !self.config.trailing_data
+        {
             // Decompressors stop reading as soon as they encounter the
             // compression trailer, so they don't notice trailing data,
             // which indicates something wrong with the input.  Look for
@@ -126,6 +142,18 @@ impl<R: BufRead> Read for DecompressReader<'_, R> {
             }
         }
         Ok(count)
+    }
+}
+
+impl<R: BufRead> Format<'_, R> {
+    fn as_primitive(&self) -> CompressionFormat {
+        use CompressionFormat::*;
+        match self {
+            Self::Uncompressed(_) => Uncompressed,
+            Self::Gzip(_) => Gzip,
+            Self::Xz(_) => Xz,
+            Self::Zstd(_) => Zstd,
+        }
     }
 }
 
