@@ -19,9 +19,9 @@ tag-message = "decompress-reader v{{version}}"
 
 [features]
 default = ["gzip", "xz", "zstd"]
-gzip = ["dep:flate2"]
-xz = ["dep:xz2"]
-zstd = ["dep:zstd"]
+gzip = ["flate2"]
+xz = ["xz2"]
+# zstd (implicit)
 
 [dependencies]
 anyhow = ">= 1.0.38, < 2"
