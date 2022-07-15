@@ -72,13 +72,7 @@ impl<R: BufRead> DecompressReader<'_, R> {
     }
 
     pub fn compressed(&self) -> bool {
-        use Format::*;
-        match &self.reader {
-            Uncompressed(_) => false,
-            Gzip(_) => true,
-            Xz(_) => true,
-            Zstd(_) => true,
-        }
+        !matches!(&self.reader, Format::Uncompressed(_))
     }
 }
 
