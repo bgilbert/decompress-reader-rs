@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use enum_dispatch::enum_dispatch;
 use std::io::{self, BufRead, ErrorKind, Read, Seek};
 
+mod config;
 mod format;
 mod peek;
+
+pub use self::config::*;
 
 use self::format::*;
 use self::peek::*;
@@ -34,46 +37,47 @@ enum Format<'a, R: BufRead> {
 }
 
 pub struct DecompressReader<'a, R: BufRead> {
+    config: DecompressBuilder,
     reader: Format<'a, R>,
-    allow_trailing: bool,
 }
 
 /// Format-sniffing decompressor
 impl<'a, R: BufRead> DecompressReader<'a, R> {
     pub fn new(source: R) -> Result<Self> {
+        Self::new_full(source, DecompressBuilder::new())
+    }
+
+    fn new_full(source: R, config: DecompressBuilder) -> Result<Self> {
         Ok(Self {
-            reader: Self::get_reader(source)?,
-            allow_trailing: false,
+            reader: Self::get_reader(source, &config)?,
+            config: config,
         })
     }
 
-    pub fn for_concatenated(source: R) -> Result<Self> {
-        Ok(Self {
-            reader: Self::get_reader(source)?,
-            allow_trailing: true,
-        })
-    }
-
-    fn get_reader(source: R) -> Result<Format<'a, R>> {
+    fn get_reader(source: R, config: &DecompressBuilder) -> Result<Format<'a, R>> {
         #[allow(unused_mut)]
         let mut source = PeekReader::new(source);
 
         #[cfg(feature = "gzip")]
-        if GzipReader::detect(&mut source)? {
+        if config.gzip && GzipReader::detect(&mut source)? {
             return Ok(GzipReader::new(source).into());
         }
 
         #[cfg(feature = "xz")]
-        if XzReader::detect(&mut source)? {
+        if config.xz && XzReader::detect(&mut source)? {
             return Ok(XzReader::new(source).into());
         }
 
         #[cfg(feature = "zstd")]
-        if ZstdReader::detect(&mut source)? {
+        if config.zstd && ZstdReader::detect(&mut source)? {
             return Ok(ZstdReader::new(source)?.into());
         }
 
-        Ok(UncompressedReader::new(source).into())
+        if config.uncompressed {
+            return Ok(UncompressedReader::new(source).into());
+        }
+
+        bail!("Compression not detected");
     }
 
     pub fn into_reader(self) -> impl BufRead {
@@ -109,7 +113,7 @@ impl<R: BufRead> Read for DecompressReader<'_, R> {
             #[cfg(feature = "zstd")]
             Zstd(d) => d.read(buf)?,
         };
-        if count == 0 && !buf.is_empty() && self.compressed() && !self.allow_trailing {
+        if count == 0 && !buf.is_empty() && self.compressed() && !self.config.trailing_data {
             // Decompressors stop reading as soon as they encounter the
             // compression trailer, so they don't notice trailing data,
             // which indicates something wrong with the input.  Look for
@@ -167,8 +171,10 @@ mod tests {
             .unwrap_err();
 
         // use concatenated mode, make sure we ignore trailing garbage
-        let mut reader =
-            DecompressReader::for_concatenated(BufReader::with_capacity(32, &*input)).unwrap();
+        let mut reader = DecompressBuilder::new()
+            .trailing_data(true)
+            .reader(BufReader::with_capacity(32, &*input))
+            .unwrap();
         reader.read_to_end(&mut output).unwrap();
         let mut remainder = Vec::new();
         reader.into_reader().read_to_end(&mut remainder).unwrap();
