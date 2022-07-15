@@ -14,7 +14,7 @@
 
 use anyhow::{Context, Result};
 use flate2::bufread::GzDecoder;
-use std::io::{self, ErrorKind, Read};
+use std::io::{self, BufRead, ErrorKind, Read};
 
 mod peek;
 mod xz;
@@ -24,20 +24,20 @@ use self::peek::*;
 use self::xz::*;
 use self::zstd::*;
 
-enum CompressDecoder<'a, R: Read> {
+enum CompressDecoder<'a, R: BufRead> {
     Uncompressed(PeekReader<R>),
     Gzip(GzDecoder<PeekReader<R>>),
     Xz(XzStreamDecoder<PeekReader<R>>),
     Zstd(ZstdStreamDecoder<'a, R>),
 }
 
-pub struct DecompressReader<'a, R: Read> {
+pub struct DecompressReader<'a, R: BufRead> {
     decoder: CompressDecoder<'a, R>,
     allow_trailing: bool,
 }
 
 /// Format-sniffing decompressor
-impl<R: Read> DecompressReader<'_, R> {
+impl<R: BufRead> DecompressReader<'_, R> {
     pub fn new(source: PeekReader<R>) -> Result<Self> {
         Self::new_full(source, false)
     }
@@ -95,7 +95,7 @@ impl<R: Read> DecompressReader<'_, R> {
     }
 }
 
-impl<R: Read> Read for DecompressReader<'_, R> {
+impl<R: BufRead> Read for DecompressReader<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         use CompressDecoder::*;
         let count = match &mut self.decoder {
@@ -123,6 +123,7 @@ impl<R: Read> Read for DecompressReader<'_, R> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::BufReader;
 
     /// Test that DecompressReader fails if data is appended to the
     /// compressed stream.
@@ -138,27 +139,32 @@ mod tests {
         let mut output = Vec::new();
 
         // successful run
-        DecompressReader::new(PeekReader::with_capacity(32, &*input))
+        DecompressReader::new(PeekReader::new(BufReader::with_capacity(32, &*input)))
             .unwrap()
             .read_to_end(&mut output)
             .unwrap();
 
         // drop last byte, make sure we notice
-        DecompressReader::new(PeekReader::with_capacity(32, &input[0..input.len() - 1]))
-            .unwrap()
-            .read_to_end(&mut output)
-            .unwrap_err();
+        DecompressReader::new(PeekReader::new(BufReader::with_capacity(
+            32,
+            &input[0..input.len() - 1],
+        )))
+        .unwrap()
+        .read_to_end(&mut output)
+        .unwrap_err();
 
         // add trailing garbage, make sure we notice
         input.push(0);
-        DecompressReader::new(PeekReader::with_capacity(32, &*input))
+        DecompressReader::new(PeekReader::new(BufReader::with_capacity(32, &*input)))
             .unwrap()
             .read_to_end(&mut output)
             .unwrap_err();
 
         // use concatenated mode, make sure we ignore trailing garbage
-        let mut reader =
-            DecompressReader::for_concatenated(PeekReader::with_capacity(32, &*input)).unwrap();
+        let mut reader = DecompressReader::for_concatenated(PeekReader::new(
+            BufReader::with_capacity(32, &*input),
+        ))
+        .unwrap();
         reader.read_to_end(&mut output).unwrap();
         let mut remainder = Vec::new();
         reader.into_inner().read_to_end(&mut remainder).unwrap();

@@ -18,17 +18,17 @@
 // as a thin wrapper around BufReader.
 
 use bytes::{Buf, BytesMut};
-use std::io::{BufRead, BufReader, Read, Result, Seek, SeekFrom};
+use std::io::{BufRead, Read, Result, Seek, SeekFrom};
 
-pub struct PeekReader<R: Read> {
-    source: BufReader<R>,
+pub struct PeekReader<R: BufRead> {
+    source: R,
     buf: BytesMut,
 }
 
-impl<R: Read> PeekReader<R> {
-    pub fn with_capacity(capacity: usize, inner: R) -> Self {
+impl<R: BufRead> PeekReader<R> {
+    pub fn new(source: R) -> Self {
         Self {
-            source: BufReader::with_capacity(capacity, inner),
+            source,
             buf: BytesMut::new(),
         }
     }
@@ -57,7 +57,7 @@ impl<R: Read> PeekReader<R> {
     // buf is non-empty
 }
 
-impl<R: Read> Read for PeekReader<R> {
+impl<R: BufRead> Read for PeekReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
         if buf.is_empty() {
             return Ok(0);
@@ -71,14 +71,14 @@ impl<R: Read> Read for PeekReader<R> {
     }
 }
 
-impl<R: Read + Seek> Seek for PeekReader<R> {
+impl<R: BufRead + Seek> Seek for PeekReader<R> {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
         self.buf.clear();
         self.source.seek(pos)
     }
 }
 
-impl<R: Read> BufRead for PeekReader<R> {
+impl<R: BufRead> BufRead for PeekReader<R> {
     fn fill_buf(&mut self) -> Result<&[u8]> {
         if self.buf.has_remaining() {
             Ok(&self.buf)
@@ -100,15 +100,18 @@ impl<R: Read> BufRead for PeekReader<R> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
+    use std::io::{BufReader, Cursor};
 
-    fn make_peek() -> PeekReader<Cursor<&'static [u8]>> {
+    fn make_peek() -> PeekReader<BufReader<Cursor<&'static [u8]>>> {
         // use BufReader capacity larger than input; we're not testing
         // BufReader's buffering behavior
-        PeekReader::with_capacity(64, Cursor::new(b"abcdefghijklmnopqrstuvwxyz"))
+        PeekReader::new(BufReader::with_capacity(
+            64,
+            Cursor::new(b"abcdefghijklmnopqrstuvwxyz"),
+        ))
     }
 
-    fn read_bytes<R: Read>(peek: &mut PeekReader<R>, amt: usize) -> Vec<u8> {
+    fn read_bytes<R: BufRead>(peek: &mut PeekReader<R>, amt: usize) -> Vec<u8> {
         let mut buf = Vec::with_capacity(amt);
         buf.resize(amt, 0);
         let amt = peek.read(&mut buf).unwrap();

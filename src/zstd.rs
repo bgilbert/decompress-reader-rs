@@ -31,14 +31,14 @@ use zstd::zstd_safe::{MAGICNUMBER, MAGIC_SKIPPABLE_MASK, MAGIC_SKIPPABLE_START};
 
 use crate::PeekReader;
 
-pub struct ZstdStreamDecoder<'a, R: Read> {
+pub struct ZstdStreamDecoder<'a, R: BufRead> {
     source: PeekReader<R>,
     buf: BytesMut,
     decoder: Decoder<'a>,
     start_of_frame: bool,
 }
 
-impl<R: Read> ZstdStreamDecoder<'_, R> {
+impl<R: BufRead> ZstdStreamDecoder<'_, R> {
     pub fn new(source: PeekReader<R>) -> Result<Self> {
         Ok(Self {
             source,
@@ -57,7 +57,7 @@ impl<R: Read> ZstdStreamDecoder<'_, R> {
     }
 }
 
-impl<R: Read> Read for ZstdStreamDecoder<'_, R> {
+impl<R: BufRead> Read for ZstdStreamDecoder<'_, R> {
     fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
         if out.is_empty() {
             return Ok(0);
@@ -105,6 +105,7 @@ pub fn is_zstd_magic(buf: [u8; 4]) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::io::BufReader;
 
     #[test]
     fn small_decode() {
@@ -113,7 +114,9 @@ mod tests {
         let uncompressed = zstd::stream::decode_all(&*compressed).unwrap();
         compressed.extend(b"abcdefg");
 
-        let mut d = ZstdStreamDecoder::new(PeekReader::with_capacity(1, &*compressed)).unwrap();
+        let mut d =
+            ZstdStreamDecoder::new(PeekReader::new(BufReader::with_capacity(1, &*compressed)))
+                .unwrap();
         let mut out = Vec::new();
         let mut buf = [0u8];
         loop {
