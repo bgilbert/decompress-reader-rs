@@ -19,6 +19,8 @@ mod config;
 mod error;
 mod format;
 mod peek;
+#[cfg(test)]
+mod tests;
 
 pub use self::config::*;
 pub use self::error::*;
@@ -160,58 +162,5 @@ impl<R: BufRead> Format<'_, R> {
             #[cfg(feature = "zstd")]
             Self::Zstd(_) => Zstd,
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::io::BufReader;
-
-    /// Test that DecompressReader fails if data is appended to the
-    /// compressed stream.
-    #[test]
-    fn trailing_data() {
-        #[cfg(feature = "gzip")]
-        trailing_data_one(&include_bytes!("../fixtures/1M.gz")[..]);
-        #[cfg(feature = "xz")]
-        trailing_data_one(&include_bytes!("../fixtures/1M.xz")[..]);
-        #[cfg(feature = "zstd")]
-        trailing_data_one(&include_bytes!("../fixtures/1M.zst")[..]);
-    }
-
-    #[allow(dead_code)]
-    fn trailing_data_one(input: &[u8]) {
-        let mut input = input.to_vec();
-        let mut output = Vec::new();
-
-        // successful run
-        DecompressReader::new(BufReader::with_capacity(32, &*input))
-            .unwrap()
-            .read_to_end(&mut output)
-            .unwrap();
-
-        // drop last byte, make sure we notice
-        DecompressReader::new(BufReader::with_capacity(32, &input[0..input.len() - 1]))
-            .unwrap()
-            .read_to_end(&mut output)
-            .unwrap_err();
-
-        // add trailing garbage, make sure we notice
-        input.push(0);
-        DecompressReader::new(BufReader::with_capacity(32, &*input))
-            .unwrap()
-            .read_to_end(&mut output)
-            .unwrap_err();
-
-        // use concatenated mode, make sure we ignore trailing garbage
-        let mut reader = DecompressBuilder::new()
-            .trailing_data(true)
-            .reader(BufReader::with_capacity(32, &*input))
-            .unwrap();
-        reader.read_to_end(&mut output).unwrap();
-        let mut remainder = Vec::new();
-        reader.into_reader().read_to_end(&mut remainder).unwrap();
-        assert_eq!(&remainder, &[0]);
     }
 }
