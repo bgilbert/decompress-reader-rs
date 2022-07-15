@@ -18,7 +18,7 @@
 // as a thin wrapper around BufReader.
 
 use bytes::{Buf, BytesMut};
-use std::io::{BufRead, Read, Result, Seek, SeekFrom};
+use std::io::{self, BufRead, Read, Seek, SeekFrom};
 
 pub(crate) struct PeekReader<R: BufRead> {
     source: R,
@@ -35,7 +35,7 @@ impl<R: BufRead> PeekReader<R> {
 
     /// Return the next amt bytes without consuming them.  May return fewer
     /// bytes at EOF.
-    pub(crate) fn peek(&mut self, amt: usize) -> Result<&[u8]> {
+    pub(crate) fn peek(&mut self, amt: usize) -> io::Result<&[u8]> {
         if self.buf.remaining() < amt {
             let mut extend = amt - self.buf.remaining();
             self.buf.resize(amt, 0);
@@ -58,7 +58,7 @@ impl<R: BufRead> PeekReader<R> {
 }
 
 impl<R: BufRead> Read for PeekReader<R> {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize> {
+    fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         if buf.is_empty() {
             return Ok(0);
         }
@@ -72,14 +72,14 @@ impl<R: BufRead> Read for PeekReader<R> {
 }
 
 impl<R: BufRead + Seek> Seek for PeekReader<R> {
-    fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
+    fn seek(&mut self, pos: SeekFrom) -> io::Result<u64> {
         self.buf.clear();
         self.source.seek(pos)
     }
 }
 
 impl<R: BufRead> BufRead for PeekReader<R> {
-    fn fill_buf(&mut self) -> Result<&[u8]> {
+    fn fill_buf(&mut self) -> io::Result<&[u8]> {
         if self.buf.has_remaining() {
             Ok(&self.buf)
         } else {

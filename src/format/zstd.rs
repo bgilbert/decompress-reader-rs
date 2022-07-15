@@ -23,13 +23,12 @@
 // done, return Ok(0) and allow the caller to decide what it wants to do
 // about trailing data.
 
-use anyhow::{Context, Result};
 use bytes::{Buf, BytesMut};
 use std::io::{self, BufRead, Error, ErrorKind, Read};
 use zstd::stream::raw::{Decoder, Operation};
 use zstd::zstd_safe::{MAGICNUMBER, MAGIC_SKIPPABLE_MASK, MAGIC_SKIPPABLE_START};
 
-use crate::{FormatReader, PeekReader};
+use crate::{FormatReader, PeekReader, Result};
 
 pub(crate) struct ZstdReader<'a, R: BufRead> {
     source: PeekReader<R>,
@@ -40,7 +39,7 @@ pub(crate) struct ZstdReader<'a, R: BufRead> {
 
 impl<R: BufRead> ZstdReader<'_, R> {
     pub(crate) fn detect(source: &mut PeekReader<R>) -> Result<bool> {
-        let sniff = source.peek(4).context("sniffing input")?;
+        let sniff = source.peek(4)?;
         Ok(sniff.len() == 4 && is_magic(sniff.try_into().unwrap()))
     }
 
@@ -48,7 +47,7 @@ impl<R: BufRead> ZstdReader<'_, R> {
         Ok(Self {
             source,
             buf: BytesMut::new(),
-            decoder: Decoder::new().context("creating zstd decoder")?,
+            decoder: Decoder::new()?,
             start_of_frame: true,
         })
     }

@@ -12,11 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::{Context, Result};
 use flate2::bufread::GzDecoder;
 use std::io::{self, BufRead, Read};
 
-use crate::{FormatReader, PeekReader};
+use crate::{FormatReader, PeekReader, Result};
 
 pub(crate) struct GzipReader<R: BufRead> {
     decompressor: GzDecoder<PeekReader<R>>,
@@ -24,7 +23,7 @@ pub(crate) struct GzipReader<R: BufRead> {
 
 impl<R: BufRead> GzipReader<R> {
     pub(crate) fn detect(source: &mut PeekReader<R>) -> Result<bool> {
-        Ok(source.peek(2).context("sniffing input")? == b"\x1f\x8b")
+        Ok(source.peek(2)? == b"\x1f\x8b")
     }
 
     pub(crate) fn new(source: PeekReader<R>) -> Self {

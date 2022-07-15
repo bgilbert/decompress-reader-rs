@@ -12,15 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::{bail, Result};
 use enum_dispatch::enum_dispatch;
 use std::io::{self, BufRead, ErrorKind, Read, Seek};
 
 mod config;
+mod error;
 mod format;
 mod peek;
 
 pub use self::config::*;
+pub use self::error::*;
 
 use self::format::*;
 use self::peek::*;
@@ -89,7 +90,7 @@ impl<'a, R: BufRead> DecompressReader<'a, R> {
             return Ok(UncompressedReader::new(source).into());
         }
 
-        bail!("Compression not detected");
+        Err(DecompressError::UnrecognizedFormat)
     }
 
     pub fn into_reader(self) -> impl BufRead {
