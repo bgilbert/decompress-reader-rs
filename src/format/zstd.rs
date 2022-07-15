@@ -118,20 +118,3 @@ fn is_magic(buf: [u8; 4]) -> bool {
     let val = u32::from_le_bytes(buf);
     val == MAGICNUMBER || val & MAGIC_SKIPPABLE_MASK == MAGIC_SKIPPABLE_START
 }
-
-#[cfg(test)]
-mod tests {
-    use super::super::tests::*;
-    use super::*;
-
-    #[test]
-    fn small_decode() {
-        small_decode_one(
-            include_bytes!("../../fixtures/large.gz"),
-            ZstdReader::new(small_decode_one_make(include_bytes!(
-                "../../fixtures/large.zst"
-            )))
-            .unwrap(),
-        );
-    }
-}

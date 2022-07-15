@@ -94,19 +94,3 @@ impl<R: BufRead> Read for XzReader<R> {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::super::tests::*;
-    use super::*;
-
-    #[test]
-    fn small_decode() {
-        small_decode_one(
-            include_bytes!("../../fixtures/large.gz"),
-            XzReader::new(small_decode_one_make(include_bytes!(
-                "../../fixtures/large.xz"
-            ))),
-        );
-    }
-}

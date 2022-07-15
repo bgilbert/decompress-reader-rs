@@ -19,7 +19,7 @@ use flate2::read::GzDecoder;
 use lazy_static::lazy_static;
 use maplit::hashmap;
 use std::collections::HashMap;
-use std::io::BufReader;
+use std::io::{BufReader, Cursor, Read};
 
 use crate::*;
 
@@ -81,6 +81,12 @@ fn gzip() {
 #[cfg(feature = "xz")]
 fn xz() {
     test_set(&*XZ_FIXTURES);
+
+    // test the underlying reader one byte at a time
+    small_decode(
+        XzReader::new(small_decode_make(XZ_FIXTURES.get("random").unwrap())),
+        &get_expected("random"),
+    );
 }
 
 #[test]
@@ -97,6 +103,12 @@ fn zstd() {
         expected.extend(&uncompressed);
     }
     test_case("multiple frames", &input, &expected);
+
+    // test the underlying reader one byte at a time
+    small_decode(
+        ZstdReader::new(small_decode_make(ZSTD_FIXTURES.get("random").unwrap())).unwrap(),
+        &get_expected("random"),
+    );
 }
 
 #[test]
@@ -151,6 +163,28 @@ fn test_case(name: &str, input: &[u8], expected: &[u8]) {
     let mut remainder = Vec::new();
     reader.into_reader().read_to_end(&mut remainder).unwrap();
     assert_eq!(&remainder, &[12]);
+}
+
+fn small_decode<T: Read + FormatReader<BufReader<Cursor<Vec<u8>>>>>(mut d: T, expected: &[u8]) {
+    let mut out = Vec::new();
+    let mut buf = [0u8];
+    loop {
+        match d.read(&mut buf).unwrap() {
+            0 => break,
+            1 => out.push(buf[0]),
+            _ => unreachable!(),
+        }
+    }
+    assert_eq!(&out, &expected);
+    let mut remainder = Vec::new();
+    d.into_inner().read_to_end(&mut remainder).unwrap();
+    assert_eq!(&remainder, b"abcdefg");
+}
+
+fn small_decode_make(f_compressed: &[u8]) -> PeekReader<BufReader<Cursor<Vec<u8>>>> {
+    let mut compressed = f_compressed.to_vec();
+    compressed.extend(b"abcdefg");
+    PeekReader::new(BufReader::with_capacity(1, Cursor::new(compressed)))
 }
 
 fn get_expected(name: &str) -> Vec<u8> {
