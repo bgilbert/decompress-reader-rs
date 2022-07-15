@@ -50,8 +50,7 @@ impl<'a, R: BufRead + fmt::Debug> fmt::Debug for ZstdReader<'a, R> {
 
 impl<R: BufRead> ZstdReader<'_, R> {
     pub(crate) fn detect(source: &mut PeekReader<R>) -> Result<bool> {
-        let sniff = source.peek(4)?;
-        Ok(sniff.len() == 4 && is_magic(sniff.try_into().unwrap()))
+        Ok(has_magic(source)?)
     }
 
     pub(crate) fn new(source: PeekReader<R>) -> Result<Self> {
@@ -86,8 +85,7 @@ impl<R: BufRead> Read for ZstdReader<'_, R> {
                 return Ok(count);
             }
             if self.start_of_frame {
-                let peek = self.source.peek(4)?;
-                if peek.len() < 4 || !is_magic(peek[0..4].try_into().unwrap()) {
+                if !has_magic(&mut self.source)? {
                     // end of compressed data
                     return Ok(0);
                 }
@@ -114,7 +112,7 @@ impl<R: BufRead> Read for ZstdReader<'_, R> {
     }
 }
 
-fn is_magic(buf: [u8; 4]) -> bool {
-    let val = u32::from_le_bytes(buf);
-    val == MAGICNUMBER || val & MAGIC_SKIPPABLE_MASK == MAGIC_SKIPPABLE_START
+fn has_magic<R: BufRead>(source: &mut PeekReader<R>) -> io::Result<bool> {
+    let val = u32::from_le_bytes(source.peek(4)?.try_into().unwrap_or_default());
+    Ok(val == MAGICNUMBER || val & MAGIC_SKIPPABLE_MASK == MAGIC_SKIPPABLE_START)
 }
