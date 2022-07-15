@@ -151,8 +151,11 @@ impl<R: BufRead> Format<'_, R> {
         use CompressionFormat::*;
         match self {
             Self::Uncompressed(_) => Uncompressed,
+            #[cfg(feature = "gzip")]
             Self::Gzip(_) => Gzip,
+            #[cfg(feature = "xz")]
             Self::Xz(_) => Xz,
+            #[cfg(feature = "zstd")]
             Self::Zstd(_) => Zstd,
         }
     }
