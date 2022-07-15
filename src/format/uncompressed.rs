@@ -13,21 +13,30 @@
 // limitations under the License.
 
 use std::io::{self, BufRead, Read};
+use std::marker::PhantomData;
 
 use super::FormatReader;
 use crate::PeekReader;
 
-pub(crate) struct UncompressedReader<R: BufRead> {
+pub(crate) struct UncompressedReader<'a, R: BufRead> {
     source: PeekReader<R>,
+    // ZstdReader takes a lifetime argument, but can be compiled out, at
+    // which point we'd get a compile error on ReaderKind.  We don't want
+    // to add an unused ReaderKind variant just to avoid this, and
+    // UncompressedReader is always compiled in, so add a lifetime here.
+    phantom: PhantomData<&'a R>,
 }
 
-impl<R: BufRead> UncompressedReader<R> {
+impl<R: BufRead> UncompressedReader<'_, R> {
     pub(crate) fn new(source: PeekReader<R>) -> Self {
-        Self { source }
+        Self {
+            source,
+            phantom: PhantomData,
+        }
     }
 }
 
-impl<R: BufRead> FormatReader<R> for UncompressedReader<R> {
+impl<R: BufRead> FormatReader<R> for UncompressedReader<'_, R> {
     fn get_mut(&mut self) -> &mut PeekReader<R> {
         &mut self.source
     }
@@ -37,7 +46,7 @@ impl<R: BufRead> FormatReader<R> for UncompressedReader<R> {
     }
 }
 
-impl<R: BufRead> Read for UncompressedReader<R> {
+impl<R: BufRead> Read for UncompressedReader<'_, R> {
     fn read(&mut self, out: &mut [u8]) -> io::Result<usize> {
         self.source.read(out)
     }

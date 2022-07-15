@@ -17,14 +17,22 @@ use std::io::BufRead;
 
 use crate::PeekReader;
 
-pub(crate) mod gzip;
 pub(crate) mod uncompressed;
+
+pub(crate) use self::uncompressed::*;
+
+#[cfg(feature = "gzip")]
+pub(crate) mod gzip;
+#[cfg(feature = "xz")]
 pub(crate) mod xz;
+#[cfg(feature = "zstd")]
 pub(crate) mod zstd;
 
+#[cfg(feature = "gzip")]
 pub(crate) use self::gzip::*;
-pub(crate) use self::uncompressed::*;
+#[cfg(feature = "xz")]
 pub(crate) use self::xz::*;
+#[cfg(feature = "zstd")]
 pub(crate) use self::zstd::*;
 
 #[enum_dispatch(Format<R>)]
