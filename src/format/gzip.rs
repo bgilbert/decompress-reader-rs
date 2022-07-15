@@ -16,8 +16,7 @@ use anyhow::{Context, Result};
 use flate2::bufread::GzDecoder;
 use std::io::{self, BufRead, Read};
 
-use super::FormatReader;
-use crate::PeekReader;
+use crate::{FormatReader, PeekReader};
 
 pub(crate) struct GzipReader<R: BufRead> {
     decompressor: GzDecoder<PeekReader<R>>,

@@ -26,8 +26,7 @@ use bytes::{Buf, BufMut, BytesMut};
 use std::io::{self, BufRead, Read, Write};
 use xz2::write::XzDecoder;
 
-use super::FormatReader;
-use crate::PeekReader;
+use crate::{FormatReader, PeekReader};
 
 pub(crate) struct XzReader<R: BufRead> {
     source: PeekReader<R>,

@@ -15,8 +15,7 @@
 use std::io::{self, BufRead, Read};
 use std::marker::PhantomData;
 
-use super::FormatReader;
-use crate::PeekReader;
+use crate::{FormatReader, PeekReader};
 
 pub(crate) struct UncompressedReader<'a, R: BufRead> {
     source: PeekReader<R>,
