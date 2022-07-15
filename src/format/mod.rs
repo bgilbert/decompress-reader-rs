@@ -42,3 +42,45 @@ pub(crate) trait FormatReader<R: BufRead> {
     fn get_mut(&mut self) -> &mut PeekReader<R>;
     fn into_inner(self) -> PeekReader<R>;
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use flate2::read::GzDecoder;
+    use std::io::{BufReader, Cursor, Read};
+
+    #[allow(dead_code)]
+    pub(crate) fn small_decode_one<T: Read + FormatReader<BufReader<Cursor<Vec<u8>>>>>(
+        gz_compressed: &[u8],
+        mut d: T,
+    ) {
+        let mut uncompressed = Vec::new();
+        GzDecoder::new(&*gz_compressed)
+            .read_to_end(&mut uncompressed)
+            .unwrap();
+
+        let mut out = Vec::new();
+        let mut buf = [0u8];
+        loop {
+            match d.read(&mut buf).unwrap() {
+                0 => break,
+                1 => out.push(buf[0]),
+                _ => unreachable!(),
+            }
+        }
+        assert_eq!(&out, &uncompressed);
+        let mut remainder = Vec::new();
+        d.into_inner().read_to_end(&mut remainder).unwrap();
+        assert_eq!(&remainder, b"abcdefg");
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn small_decode_one_make(
+        f_compressed: &[u8],
+    ) -> PeekReader<BufReader<Cursor<Vec<u8>>>> {
+        let mut compressed = Vec::new();
+        compressed.extend(f_compressed);
+        compressed.extend(b"abcdefg");
+        PeekReader::new(BufReader::with_capacity(1, Cursor::new(compressed)))
+    }
+}

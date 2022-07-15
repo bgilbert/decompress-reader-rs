@@ -90,33 +90,16 @@ impl<R: BufRead> Read for XzReader<R> {
 
 #[cfg(test)]
 mod tests {
+    use super::super::tests::*;
     use super::*;
-    use std::io::BufReader;
-    use xz2::read::XzDecoder;
 
     #[test]
     fn small_decode() {
-        let mut compressed = Vec::new();
-        compressed.extend(include_bytes!("../../fixtures/1M.xz"));
-        let mut uncompressed = Vec::new();
-        XzDecoder::new(&*compressed)
-            .read_to_end(&mut uncompressed)
-            .unwrap();
-        compressed.extend(b"abcdefg");
-
-        let mut d = XzReader::new(PeekReader::new(BufReader::with_capacity(1, &*compressed)));
-        let mut out = Vec::new();
-        let mut buf = [0u8];
-        loop {
-            match d.read(&mut buf).unwrap() {
-                0 => break,
-                1 => out.push(buf[0]),
-                _ => unreachable!(),
-            }
-        }
-        assert_eq!(&out, &uncompressed);
-        let mut remainder = Vec::new();
-        d.into_inner().read_to_end(&mut remainder).unwrap();
-        assert_eq!(&remainder, b"abcdefg");
+        small_decode_one(
+            include_bytes!("../../fixtures/1M.gz"),
+            XzReader::new(small_decode_one_make(include_bytes!(
+                "../../fixtures/1M.xz"
+            ))),
+        );
     }
 }

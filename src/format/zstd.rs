@@ -112,30 +112,17 @@ fn is_magic(buf: [u8; 4]) -> bool {
 
 #[cfg(test)]
 mod tests {
+    use super::super::tests::*;
     use super::*;
-    use std::io::BufReader;
 
     #[test]
     fn small_decode() {
-        let mut compressed = Vec::new();
-        compressed.extend(include_bytes!("../../fixtures/1M.zst"));
-        let uncompressed = zstd::stream::decode_all(&*compressed).unwrap();
-        compressed.extend(b"abcdefg");
-
-        let mut d =
-            ZstdReader::new(PeekReader::new(BufReader::with_capacity(1, &*compressed))).unwrap();
-        let mut out = Vec::new();
-        let mut buf = [0u8];
-        loop {
-            match d.read(&mut buf).unwrap() {
-                0 => break,
-                1 => out.push(buf[0]),
-                _ => unreachable!(),
-            }
-        }
-        assert_eq!(&out, &uncompressed);
-        let mut remainder = Vec::new();
-        d.into_inner().read_to_end(&mut remainder).unwrap();
-        assert_eq!(&remainder, b"abcdefg");
+        small_decode_one(
+            include_bytes!("../../fixtures/1M.gz"),
+            ZstdReader::new(small_decode_one_make(include_bytes!(
+                "../../fixtures/1M.zst"
+            )))
+            .unwrap(),
+        );
     }
 }
