@@ -40,6 +40,11 @@ pub(crate) struct ZstdReader<'a, R: BufRead> {
 }
 
 impl<R: BufRead> ZstdReader<'_, R> {
+    pub(crate) fn detect(source: &mut PeekReader<R>) -> Result<bool> {
+        let sniff = source.peek(4).context("sniffing input")?;
+        Ok(sniff.len() == 4 && is_magic(sniff.try_into().unwrap()))
+    }
+
     pub(crate) fn new(source: PeekReader<R>) -> Result<Self> {
         Ok(Self {
             source,
@@ -73,7 +78,7 @@ impl<R: BufRead> Read for ZstdReader<'_, R> {
             }
             if self.start_of_frame {
                 let peek = self.source.peek(4)?;
-                if peek.len() < 4 || !is_zstd_magic(peek[0..4].try_into().unwrap()) {
+                if peek.len() < 4 || !is_magic(peek[0..4].try_into().unwrap()) {
                     // end of compressed data
                     return Ok(0);
                 }
@@ -100,7 +105,7 @@ impl<R: BufRead> Read for ZstdReader<'_, R> {
     }
 }
 
-pub(crate) fn is_zstd_magic(buf: [u8; 4]) -> bool {
+fn is_magic(buf: [u8; 4]) -> bool {
     let val = u32::from_le_bytes(buf);
     val == MAGICNUMBER || val & MAGIC_SKIPPABLE_MASK == MAGIC_SKIPPABLE_START
 }

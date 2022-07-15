@@ -21,6 +21,7 @@
 //
 // https://github.com/alexcrichton/xz2-rs/pull/86
 
+use anyhow::{Context, Result};
 use bytes::{Buf, BufMut, BytesMut};
 use std::io::{self, BufRead, Read, Write};
 use xz2::write::XzDecoder;
@@ -34,6 +35,10 @@ pub(crate) struct XzReader<R: BufRead> {
 }
 
 impl<R: BufRead> XzReader<R> {
+    pub(crate) fn detect(source: &mut PeekReader<R>) -> Result<bool> {
+        Ok(source.peek(6).context("sniffing input")? == b"\xfd7zXZ\x00")
+    }
+
     pub(crate) fn new(source: PeekReader<R>) -> Self {
         Self {
             source,

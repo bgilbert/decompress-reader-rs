@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use enum_dispatch::enum_dispatch;
 use std::io::{self, BufRead, ErrorKind, Read, Seek};
 
@@ -47,12 +47,11 @@ impl<R: BufRead> DecompressReader<'_, R> {
 
     fn new_full(source: R, allow_trailing: bool) -> Result<Self> {
         let mut source = PeekReader::new(source);
-        let sniff = source.peek(6).context("sniffing input")?;
-        let reader = if sniff.len() >= 2 && &sniff[0..2] == b"\x1f\x8b" {
+        let reader = if GzipReader::detect(&mut source)? {
             GzipReader::new(source).into()
-        } else if sniff.len() >= 6 && &sniff[0..6] == b"\xfd7zXZ\x00" {
+        } else if XzReader::detect(&mut source)? {
             XzReader::new(source).into()
-        } else if sniff.len() > 4 && is_zstd_magic(sniff[0..4].try_into().unwrap()) {
+        } else if ZstdReader::detect(&mut source)? {
             ZstdReader::new(source)?.into()
         } else {
             UncompressedReader::new(source).into()
