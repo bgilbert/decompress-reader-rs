@@ -50,7 +50,7 @@ impl<'a, R: BufRead> DecompressReader<'a, R> {
     fn new_full(source: R, config: DecompressBuilder) -> Result<Self> {
         Ok(Self {
             reader: Self::get_reader(source, &config)?,
-            config: config,
+            config,
         })
     }
 
