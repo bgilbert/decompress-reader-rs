@@ -24,6 +24,7 @@
 // about trailing data.
 
 use bytes::{Buf, BytesMut};
+use std::fmt;
 use std::io::{self, BufRead, Error, ErrorKind, Read};
 use zstd::stream::raw::{Decoder, Operation};
 use zstd::zstd_safe::{MAGICNUMBER, MAGIC_SKIPPABLE_MASK, MAGIC_SKIPPABLE_START};
@@ -35,6 +36,16 @@ pub(crate) struct ZstdReader<'a, R: BufRead> {
     buf: BytesMut,
     decoder: Decoder<'a>,
     start_of_frame: bool,
+}
+
+impl<'a, R: BufRead + fmt::Debug> fmt::Debug for ZstdReader<'a, R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("ZstdReader")
+            .field("source", &self.source)
+            .field("buf", &self.buf)
+            .field("start_of_frame", &self.start_of_frame)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<R: BufRead> ZstdReader<'_, R> {

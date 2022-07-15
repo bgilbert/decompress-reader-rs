@@ -17,6 +17,7 @@ use std::marker::PhantomData;
 
 use crate::{FormatReader, PeekReader};
 
+#[derive(Debug)]
 pub(crate) struct UncompressedReader<'a, R: BufRead> {
     source: PeekReader<R>,
     // ZstdReader takes a lifetime argument, but can be compiled out, at

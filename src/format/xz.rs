@@ -22,6 +22,7 @@
 // https://github.com/alexcrichton/xz2-rs/pull/86
 
 use bytes::{Buf, BufMut, BytesMut};
+use std::fmt;
 use std::io::{self, BufRead, Read, Write};
 use xz2::write::XzDecoder;
 
@@ -30,6 +31,14 @@ use crate::{FormatReader, PeekReader, Result};
 pub(crate) struct XzReader<R: BufRead> {
     source: PeekReader<R>,
     decompressor: XzDecoder<bytes::buf::Writer<BytesMut>>,
+}
+
+impl<R: BufRead + fmt::Debug> fmt::Debug for XzReader<R> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("XzReader")
+            .field("source", &self.source)
+            .finish_non_exhaustive()
+    }
 }
 
 impl<R: BufRead> XzReader<R> {

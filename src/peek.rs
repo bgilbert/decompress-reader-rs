@@ -20,6 +20,7 @@
 use bytes::{Buf, BytesMut};
 use std::io::{self, BufRead, Read, Seek, SeekFrom};
 
+#[derive(Debug)]
 pub(crate) struct PeekReader<R: BufRead> {
     source: R,
     buf: BytesMut,

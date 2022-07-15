@@ -17,6 +17,7 @@ use std::io::{self, BufRead, Read};
 
 use crate::{FormatReader, PeekReader, Result};
 
+#[derive(Debug)]
 pub(crate) struct GzipReader<R: BufRead> {
     decompressor: GzDecoder<PeekReader<R>>,
 }

@@ -39,6 +39,7 @@ pub enum CompressionFormat {
 }
 
 #[enum_dispatch]
+#[derive(Debug)]
 enum Format<'a, R: BufRead> {
     Uncompressed(UncompressedReader<'a, R>),
     #[cfg(feature = "gzip")]
@@ -49,6 +50,7 @@ enum Format<'a, R: BufRead> {
     Zstd(ZstdReader<'a, R>),
 }
 
+#[derive(Debug)]
 pub struct DecompressReader<'a, R: BufRead> {
     config: DecompressBuilder,
     reader: Format<'a, R>,
