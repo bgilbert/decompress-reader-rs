@@ -32,6 +32,8 @@ use self::peek::*;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CompressionFormat {
     Uncompressed,
+    #[cfg(feature = "bzip2")]
+    Bzip2,
     #[cfg(feature = "gzip")]
     Gzip,
     #[cfg(feature = "xz")]
@@ -44,6 +46,8 @@ pub enum CompressionFormat {
 #[derive(Debug)]
 enum Format<'a, R: BufRead> {
     Uncompressed(UncompressedReader<'a, R>),
+    #[cfg(feature = "bzip2")]
+    Bzip2(Bzip2Reader<R>),
     #[cfg(feature = "gzip")]
     Gzip(GzipReader<R>),
     #[cfg(feature = "xz")]
@@ -74,6 +78,11 @@ impl<'a, R: BufRead> DecompressReader<'a, R> {
     fn get_reader(source: R, config: &DecompressBuilder) -> Result<Format<'a, R>> {
         #[allow(unused_mut)]
         let mut source = PeekReader::new(source);
+
+        #[cfg(feature = "bzip2")]
+        if config.bzip2 && Bzip2Reader::detect(&mut source)? {
+            return Ok(Bzip2Reader::new(source).into());
+        }
 
         #[cfg(feature = "gzip")]
         if config.gzip && GzipReader::detect(&mut source)? {
@@ -123,6 +132,8 @@ impl<R: BufRead> Read for DecompressReader<'_, R> {
         use Format::*;
         let count = match &mut self.reader {
             Uncompressed(d) => d.read(buf)?,
+            #[cfg(feature = "bzip2")]
+            Bzip2(d) => d.read(buf)?,
             #[cfg(feature = "gzip")]
             Gzip(d) => d.read(buf)?,
             #[cfg(feature = "xz")]
@@ -155,6 +166,8 @@ impl<R: BufRead> Format<'_, R> {
         use CompressionFormat::*;
         match self {
             Self::Uncompressed(_) => Uncompressed,
+            #[cfg(feature = "bzip2")]
+            Self::Bzip2(_) => Bzip2,
             #[cfg(feature = "gzip")]
             Self::Gzip(_) => Gzip,
             #[cfg(feature = "xz")]

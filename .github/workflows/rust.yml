@@ -23,7 +23,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install liblzma-dev libzstd-dev
+          sudo apt-get install libbz2-dev liblzma-dev libzstd-dev
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install liblzma-dev libzstd-dev
+          sudo apt-get install libbz2-dev liblzma-dev libzstd-dev
       - name: Detect crate MSRV
         run: |
           msrv=$(cargo metadata --format-version 1 --no-deps | \
@@ -71,7 +71,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install liblzma-dev libzstd-dev
+          sudo apt-get install libbz2-dev liblzma-dev libzstd-dev
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -97,7 +97,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install liblzma-dev libzstd-dev
+          sudo apt-get install libbz2-dev liblzma-dev libzstd-dev
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:

@@ -24,6 +24,11 @@ use std::io::{BufReader, Cursor, Read};
 use crate::*;
 
 lazy_static! {
+    static ref BZIP2_FIXTURES: HashMap<&'static str, &'static [u8]> = hashmap! {
+        "text" => &include_bytes!("../fixtures/text.bz2")[..],
+        "random" => &include_bytes!("../fixtures/random.bz2")[..],
+        "large" => &include_bytes!("../fixtures/large.bz2")[..],
+    };
     static ref GZIP_FIXTURES: HashMap<&'static str, &'static [u8]> = hashmap! {
         "text" => &include_bytes!("../fixtures/text.gz")[..],
         "random" => &include_bytes!("../fixtures/random.gz")[..],
@@ -46,6 +51,8 @@ fn check_format_coverage<'a, R: BufRead>(format: Format<'a, R>) {
     use Format::*;
     match format {
         Uncompressed(_) => (),
+        #[cfg(feature = "bzip2")]
+        Bzip2(_) => (),
         #[cfg(feature = "gzip")]
         Gzip(_) => (),
         #[cfg(feature = "xz")]
@@ -69,6 +76,14 @@ fn uncompressed() {
             .unwrap();
         assert_eq!(output, uncompressed);
     }
+}
+
+#[test]
+#[cfg(feature = "bzip2")]
+fn bzip2() {
+    test_set(&*BZIP2_FIXTURES);
+    // multiple streams may be concatenated; pbzip2 does this
+    test_concatenated_inputs(&*BZIP2_FIXTURES);
 }
 
 #[test]

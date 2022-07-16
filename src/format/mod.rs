@@ -21,6 +21,8 @@ pub(crate) mod uncompressed;
 
 pub(crate) use self::uncompressed::*;
 
+#[cfg(feature = "bzip2")]
+pub(crate) mod bzip2;
 #[cfg(feature = "gzip")]
 pub(crate) mod gzip;
 #[cfg(feature = "xz")]
@@ -28,6 +30,8 @@ pub(crate) mod xz;
 #[cfg(feature = "zstd")]
 pub(crate) mod zstd;
 
+#[cfg(feature = "bzip2")]
+pub(crate) use self::bzip2::*;
 #[cfg(feature = "gzip")]
 pub(crate) use self::gzip::*;
 #[cfg(feature = "xz")]

@@ -21,6 +21,7 @@ pub struct DecompressBuilder {
     pub(crate) trailing_data: bool,
     pub(crate) uncompressed: bool,
 
+    pub(crate) bzip2: bool,
     pub(crate) gzip: bool,
     pub(crate) xz: bool,
     pub(crate) zstd: bool,
@@ -30,6 +31,7 @@ impl DecompressBuilder {
     pub fn new() -> Self {
         Self {
             // uncompressed disabled by default
+            bzip2: true,
             gzip: true,
             xz: true,
             zstd: true,
@@ -42,6 +44,7 @@ impl DecompressBuilder {
             trailing_data: false,
             uncompressed: false,
 
+            bzip2: false,
             gzip: false,
             xz: false,
             zstd: false,
@@ -59,6 +62,11 @@ impl DecompressBuilder {
 
     pub fn uncompressed(&mut self, enable: bool) -> &mut Self {
         self.uncompressed = enable;
+        self
+    }
+
+    pub fn bzip2(&mut self, enable: bool) -> &mut Self {
+        self.bzip2 = enable;
         self
     }
 
