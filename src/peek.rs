@@ -34,6 +34,13 @@ impl<R: BufRead> PeekReader<R> {
         }
     }
 
+    pub fn from_parts<B: AsRef<[u8]>>(buf: B, source: R) -> Self {
+        Self {
+            source,
+            buf: BytesMut::from(buf.as_ref()),
+        }
+    }
+
     /// Return the next amt bytes without consuming them.  May return fewer
     /// bytes at EOF.
     pub(crate) fn peek(&mut self, amt: usize) -> io::Result<&[u8]> {
@@ -54,8 +61,9 @@ impl<R: BufRead> PeekReader<R> {
         Ok(&self.buf[..self.buf.len().min(amt)])
     }
 
-    // no direct access to inner source, since that would lose data if
-    // buf is non-empty
+    pub fn into_parts(self) -> (Vec<u8>, R) {
+        (self.buf.into(), self.source)
+    }
 }
 
 impl<R: BufRead> Read for PeekReader<R> {
@@ -112,10 +120,10 @@ mod tests {
         ))
     }
 
-    fn read_bytes<R: BufRead>(peek: &mut PeekReader<R>, amt: usize) -> Vec<u8> {
+    fn read_bytes(mut read: impl Read, amt: usize) -> Vec<u8> {
         let mut buf = Vec::with_capacity(amt);
         buf.resize(amt, 0);
-        let amt = peek.read(&mut buf).unwrap();
+        let amt = read.read(&mut buf).unwrap();
         buf.truncate(amt);
         buf
     }
@@ -190,5 +198,24 @@ mod tests {
         assert_eq!(&read_bytes(&mut peek, 3), b"yz");
         // peek at end
         assert_eq!(peek.peek(4).unwrap(), b"");
+    }
+
+    #[test]
+    fn from_parts() {
+        let mut peek =
+            PeekReader::from_parts(b"hi ", BufReader::with_capacity(32, &b"hello world"[..]));
+        assert_eq!(peek.peek(3).unwrap(), b"hi ");
+        assert_eq!(peek.peek(5).unwrap(), b"hi he");
+        assert_eq!(&read_bytes(&mut peek, 32), b"hi he");
+        assert_eq!(&read_bytes(&mut peek, 32), b"llo world");
+    }
+
+    #[test]
+    fn into_parts() {
+        let mut peek = PeekReader::new(BufReader::with_capacity(32, &b"hello world"[..]));
+        assert_eq!(peek.peek(5).unwrap(), b"hello");
+        let (buf, mut reader) = peek.into_parts();
+        assert_eq!(&buf, b"hello");
+        assert_eq!(&read_bytes(&mut reader, 32), b" world");
     }
 }
