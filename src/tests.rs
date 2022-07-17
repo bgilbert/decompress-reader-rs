@@ -54,7 +54,7 @@ fn uncompressed() {
         println!("=== {name} ===");
         DecompressBuilder::new()
             .uncompressed(true)
-            .reader(BufReader::with_capacity(32, &*uncompressed))
+            .build(BufReader::with_capacity(32, &*uncompressed))
             .unwrap()
             .read_to_end(&mut output)
             .unwrap();
@@ -137,7 +137,7 @@ fn api_test(format: CompressionFormat, input: &[u8], expected: &[u8]) {
         Zstd => builder.zstd(true),
     };
     let mut reader = builder
-        .reader(BufReader::with_capacity(32, &*input))
+        .build(BufReader::with_capacity(32, &*input))
         .unwrap();
     reader.read_to_end(&mut output).unwrap();
     assert_eq!(&output, expected);
@@ -147,10 +147,32 @@ fn api_test(format: CompressionFormat, input: &[u8], expected: &[u8]) {
     output.clear();
     assert!(matches!(
         DecompressBuilder::none()
-            .reader(BufReader::with_capacity(32, &*input))
+            .build(BufReader::with_capacity(32, &*input))
             .unwrap_err(),
         DecompressError::UnrecognizedFormat
     ));
+
+    // from_peek
+    output.clear();
+    let mut reader =
+        DecompressReader::from_peek(PeekReader::new(BufReader::with_capacity(32, &*input)))
+            .unwrap();
+    reader.read_to_end(&mut output).unwrap();
+    assert_eq!(&output, expected);
+    let (buf, mut reader) = reader.into_inner().into_parts();
+    assert_eq!(&buf, &[]);
+    reader.capacity();
+
+    // build_from_peek
+    output.clear();
+    let mut reader = DecompressBuilder::new()
+        .build_from_peek(PeekReader::new(BufReader::with_capacity(32, &*input)))
+        .unwrap();
+    reader.read_to_end(&mut output).unwrap();
+    assert_eq!(&output, expected);
+    let (buf, mut reader) = reader.into_inner().into_parts();
+    assert_eq!(&buf, &[]);
+    reader.capacity();
 }
 
 /// test a format implementation
@@ -185,12 +207,12 @@ fn test_case(name: &str, input: &[u8], expected: &[u8]) {
     output.clear();
     let mut reader = DecompressBuilder::new()
         .trailing_data(true)
-        .reader(BufReader::with_capacity(32, &*input))
+        .build(BufReader::with_capacity(32, &*input))
         .unwrap();
     reader.read_to_end(&mut output).unwrap();
     assert_eq!(&output, expected);
     let mut remainder = Vec::new();
-    reader.into_reader().read_to_end(&mut remainder).unwrap();
+    reader.into_inner().read_to_end(&mut remainder).unwrap();
     assert_eq!(&remainder, &[12]);
 }
 

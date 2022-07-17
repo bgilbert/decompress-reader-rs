@@ -21,13 +21,13 @@ use bytes::{Buf, BytesMut};
 use std::io::{self, BufRead, Read, Seek, SeekFrom};
 
 #[derive(Debug)]
-pub(crate) struct PeekReader<R: BufRead> {
+pub struct PeekReader<R: BufRead> {
     source: R,
     buf: BytesMut,
 }
 
 impl<R: BufRead> PeekReader<R> {
-    pub(crate) fn new(source: R) -> Self {
+    pub fn new(source: R) -> Self {
         Self {
             source,
             buf: BytesMut::new(),
@@ -43,7 +43,7 @@ impl<R: BufRead> PeekReader<R> {
 
     /// Return the next amt bytes without consuming them.  May return fewer
     /// bytes at EOF.
-    pub(crate) fn peek(&mut self, amt: usize) -> io::Result<&[u8]> {
+    pub fn peek(&mut self, amt: usize) -> io::Result<&[u8]> {
         if self.buf.remaining() < amt {
             let mut extend = amt - self.buf.remaining();
             self.buf.resize(amt, 0);

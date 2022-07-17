@@ -14,7 +14,7 @@
 
 use enum_dispatch::enum_dispatch;
 use std::fmt;
-use std::io::{self, BufRead, ErrorKind, Read, Seek};
+use std::io::{self, BufRead, ErrorKind, Read};
 
 mod config;
 mod error;
@@ -25,9 +25,9 @@ mod tests;
 
 pub use self::config::*;
 pub use self::error::*;
+pub use self::peek::*;
 
 use self::format::*;
-use self::peek::*;
 
 #[non_exhaustive]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,20 +66,21 @@ pub struct DecompressReader<'a, R: BufRead> {
 /// Format-sniffing decompressor
 impl<'a, R: BufRead> DecompressReader<'a, R> {
     pub fn new(source: R) -> Result<Self> {
+        Self::new_full(PeekReader::new(source), DecompressBuilder::new())
+    }
+
+    pub fn from_peek(source: PeekReader<R>) -> Result<Self> {
         Self::new_full(source, DecompressBuilder::new())
     }
 
-    fn new_full(source: R, config: DecompressBuilder) -> Result<Self> {
+    fn new_full(source: PeekReader<R>, config: DecompressBuilder) -> Result<Self> {
         Ok(Self {
             reader: Self::get_reader(source, &config)?,
             config,
         })
     }
 
-    fn get_reader(source: R, config: &DecompressBuilder) -> Result<Format<'a, R>> {
-        #[allow(unused_mut)]
-        let mut source = PeekReader::new(source);
-
+    fn get_reader(mut source: PeekReader<R>, config: &DecompressBuilder) -> Result<Format<'a, R>> {
         #[cfg(feature = "bzip2")]
         if config.bzip2 && Bzip2Reader::detect(&mut source)? {
             return Ok(Bzip2Reader::new(source).into());
@@ -107,22 +108,16 @@ impl<'a, R: BufRead> DecompressReader<'a, R> {
         Err(DecompressError::UnrecognizedFormat)
     }
 
-    pub fn into_reader(self) -> impl BufRead {
+    pub fn into_inner(self) -> PeekReader<R> {
         self.reader.into_inner()
     }
 
-    fn get_peek_mut(&mut self) -> &mut PeekReader<R> {
+    pub fn get_mut(&mut self) -> &mut PeekReader<R> {
         self.reader.get_mut()
     }
 
     pub fn format(&self) -> CompressionFormat {
         self.reader.as_primitive()
-    }
-}
-
-impl<R: BufRead + Seek> DecompressReader<'_, R> {
-    pub fn into_read_seeker(self) -> impl BufRead + Seek {
-        self.reader.into_inner()
     }
 }
 
@@ -151,7 +146,7 @@ impl<R: BufRead> Read for DecompressReader<'_, R> {
             // compression trailer, so they don't notice trailing data,
             // which indicates something wrong with the input.  Look for
             // one more byte, and fail if there is one.
-            if !self.get_peek_mut().peek(1)?.is_empty() {
+            if !self.get_mut().peek(1)?.is_empty() {
                 return Err(io::Error::new(
                     ErrorKind::InvalidData,
                     "found trailing data after compressed stream",

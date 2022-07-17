@@ -14,7 +14,7 @@
 
 use std::io::BufRead;
 
-use crate::{DecompressReader, Result};
+use crate::{DecompressReader, PeekReader, Result};
 
 #[derive(Clone, Debug)]
 pub struct DecompressBuilder {
@@ -63,7 +63,14 @@ impl DecompressBuilder {
         }
     }
 
-    pub fn reader<'a, R: BufRead>(&self, source: R) -> Result<DecompressReader<'a, R>> {
+    pub fn build<'a, R: BufRead>(&self, source: R) -> Result<DecompressReader<'a, R>> {
+        DecompressReader::new_full(PeekReader::new(source), self.clone())
+    }
+
+    pub fn build_from_peek<'a, R: BufRead>(
+        &self,
+        source: PeekReader<R>,
+    ) -> Result<DecompressReader<'a, R>> {
         DecompressReader::new_full(source, self.clone())
     }
 
