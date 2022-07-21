@@ -14,9 +14,19 @@ env:
   ACTIONS_LINTS_TOOLCHAIN: 1.62.0
 
 jobs:
-  tests-stable:
-    name: Tests, stable toolchain
+  tests:
+    name: Tests
     runs-on: ubuntu-latest
+    continue-on-error: ${{ matrix.fallible }}
+    strategy:
+      matrix:
+        include:
+          - channel: stable
+          - channel: beta
+            fallible: true
+          - channel: nightly
+            fallible: true
+          - channel: msrv
     steps:
       - name: Check out repository
         uses: actions/checkout@v2
@@ -24,37 +34,23 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install libbz2-dev liblzma-dev libzstd-dev
+      - name: Select toolchain version
+        run: |
+          case "${{ matrix.channel }}" in
+          msrv)
+              msrv=$(cargo metadata --format-version 1 --no-deps | \
+                  jq -r '.packages | .[].rust_version')
+              echo "Crate MSRV: $msrv"
+              echo "TOOLCHAIN=$msrv" >> $GITHUB_ENV
+              ;;
+          *)
+              echo "TOOLCHAIN=${{ matrix.channel }}" >> $GITHUB_ENV
+              ;;
+          esac
       - name: Install toolchain
         uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-          default: true
-      - name: cargo build
-        run: cargo build
-      - name: cargo test
-        run: cargo test
-      - name: cargo test (no features)
-        run: cargo test --no-default-features
-  tests-msrv:
-    name: Tests, minimum supported toolchain
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install libbz2-dev liblzma-dev libzstd-dev
-      - name: Detect crate MSRV
-        run: |
-          msrv=$(cargo metadata --format-version 1 --no-deps | \
-              jq -r '.packages | .[].rust_version')
-          echo "Crate MSRV: $msrv"
-          echo "MSRV=$msrv" >> $GITHUB_ENV
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ env.MSRV }}
+          toolchain: ${{ env.TOOLCHAIN }}
           default: true
       - name: cargo build
         run: cargo build
@@ -82,30 +78,3 @@ jobs:
         run: cargo clippy -- -D warnings
       - name: cargo fmt (check)
         run: cargo fmt -- --check -l
-  tests-other-channels:
-    name: Tests, unstable toolchain
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      matrix:
-        channel:
-          - beta
-          - nightly
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v2
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install libbz2-dev liblzma-dev libzstd-dev
-      - name: Install toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: ${{ matrix.channel }}
-          default: true
-      - name: cargo build
-        run: cargo build
-      - name: cargo test
-        run: cargo test
-      - name: cargo test (no features)
-        run: cargo test --no-default-features
