@@ -17,15 +17,15 @@ jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.fallible }}
+    continue-on-error: ${{ matrix.experimental }}
     strategy:
       matrix:
         include:
           - channel: stable
           - channel: beta
-            fallible: true
+            experimental: true
           - channel: nightly
-            fallible: true
+            experimental: true
           - channel: msrv
     steps:
       - name: Check out repository
