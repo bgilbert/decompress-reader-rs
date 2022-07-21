@@ -13,6 +13,7 @@
 // limitations under the License.
 
 use enum_dispatch::enum_dispatch;
+use std::fmt;
 use std::io::{self, BufRead, ErrorKind, Read, Seek};
 
 mod config;
@@ -175,5 +176,22 @@ impl<R: BufRead> Format<'_, R> {
             #[cfg(feature = "zstd")]
             Self::Zstd(_) => Zstd,
         }
+    }
+}
+
+impl fmt::Display for CompressionFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> std::result::Result<(), fmt::Error> {
+        let name = match self {
+            Self::Uncompressed => "uncompressed",
+            #[cfg(feature = "bzip2")]
+            Self::Bzip2 => "bzip2",
+            #[cfg(feature = "gzip")]
+            Self::Gzip => "gzip",
+            #[cfg(feature = "xz")]
+            Self::Xz => "xz",
+            #[cfg(feature = "zstd")]
+            Self::Zstd => "zstd",
+        };
+        write!(f, "{}", name)
     }
 }
