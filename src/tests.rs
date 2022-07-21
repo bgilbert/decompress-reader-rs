@@ -136,12 +136,12 @@ fn api_test(format: CompressionFormat, input: &[u8], expected: &[u8]) {
         #[cfg(feature = "zstd")]
         Zstd => builder.zstd(true),
     };
-    builder
+    let mut reader = builder
         .reader(BufReader::with_capacity(32, &*input))
-        .unwrap()
-        .read_to_end(&mut output)
         .unwrap();
+    reader.read_to_end(&mut output).unwrap();
     assert_eq!(&output, expected);
+    assert_eq!(reader.format(), format);
 
     // do not enable algorithms
     output.clear();
