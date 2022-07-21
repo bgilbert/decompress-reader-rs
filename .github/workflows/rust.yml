@@ -12,6 +12,7 @@ env:
   CARGO_TERM_COLOR: always
   # Pinned toolchain for linting
   ACTIONS_LINTS_TOOLCHAIN: 1.62.0
+  FEATURES: bzip2 gzip xz zstd
 
 jobs:
   tests:
@@ -58,6 +59,12 @@ jobs:
         run: cargo test
       - name: cargo test (no features)
         run: cargo test --no-default-features
+      - name: cargo test (individual features)
+        run: |
+          for feature in $FEATURES; do
+              cargo test --no-default-features --features $feature
+          done
+
   lints:
     name: Lints, pinned toolchain
     runs-on: ubuntu-latest
