@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// lots of helper functions unused with --no-default-features
-#![allow(dead_code)]
+// lots of unused code with --no-default-features
+#![allow(dead_code, unreachable_code, unused_mut, unused_variables)]
 
 use flate2::read::GzDecoder;
 use lazy_static::lazy_static;
@@ -46,22 +46,6 @@ lazy_static! {
     };
 }
 
-/// Fail compilation unless we've added a test for every format
-fn check_format_coverage<'a, R: BufRead>(format: Format<'a, R>) {
-    use Format::*;
-    match format {
-        Uncompressed(_) => (),
-        #[cfg(feature = "bzip2")]
-        Bzip2(_) => (),
-        #[cfg(feature = "gzip")]
-        Gzip(_) => (),
-        #[cfg(feature = "xz")]
-        Xz(_) => (),
-        #[cfg(feature = "zstd")]
-        Zstd(_) => (),
-    }
-}
-
 #[test]
 fn uncompressed() {
     for (name, data) in &*GZIP_FIXTURES {
@@ -81,21 +65,21 @@ fn uncompressed() {
 #[test]
 #[cfg(feature = "bzip2")]
 fn bzip2() {
-    test_set(&*BZIP2_FIXTURES);
+    test_set(CompressionFormat::Bzip2, &*BZIP2_FIXTURES);
     // multiple streams may be concatenated; pbzip2 does this
-    test_concatenated_inputs(&*BZIP2_FIXTURES);
+    test_concatenated_inputs(CompressionFormat::Bzip2, &*BZIP2_FIXTURES);
 }
 
 #[test]
 #[cfg(feature = "gzip")]
 fn gzip() {
-    test_set(&*GZIP_FIXTURES);
+    test_set(CompressionFormat::Gzip, &*GZIP_FIXTURES);
 }
 
 #[test]
 #[cfg(feature = "xz")]
 fn xz() {
-    test_set(&*XZ_FIXTURES);
+    test_set(CompressionFormat::Xz, &*XZ_FIXTURES);
     // test the underlying reader one byte at a time
     small_decode(
         XzReader::new(small_decode_make(XZ_FIXTURES.get("random").unwrap())),
@@ -106,9 +90,9 @@ fn xz() {
 #[test]
 #[cfg(feature = "zstd")]
 fn zstd() {
-    test_set(&*ZSTD_FIXTURES);
+    test_set(CompressionFormat::Zstd, &*ZSTD_FIXTURES);
     // test with multiple frames
-    test_concatenated_inputs(&*ZSTD_FIXTURES);
+    test_concatenated_inputs(CompressionFormat::Zstd, &*ZSTD_FIXTURES);
     // test the underlying reader one byte at a time
     small_decode(
         ZstdReader::new(small_decode_make(ZSTD_FIXTURES.get("random").unwrap())).unwrap(),
@@ -124,16 +108,16 @@ fn invalid() {
     ));
 }
 
-fn test_set(inputs: &HashMap<&str, &[u8]>) {
+fn test_set(format: CompressionFormat, inputs: &HashMap<&str, &[u8]>) {
     for (name, data) in inputs {
-        test_case(name, data, &get_expected(name));
+        test_case(format, name, data, &get_expected(name));
     }
 }
 
-fn test_case(name: &str, input: &[u8], expected: &[u8]) {
+fn test_case(format: CompressionFormat, name: &str, input: &[u8], expected: &[u8]) {
     let mut input = input.to_vec();
     let mut output = Vec::new();
-    println!("=== {name} ===");
+    println!("=== {format} {name} ===");
 
     // successful run
     DecompressReader::new(BufReader::with_capacity(32, &*input))
@@ -141,6 +125,37 @@ fn test_case(name: &str, input: &[u8], expected: &[u8]) {
         .read_to_end(&mut output)
         .unwrap();
     assert_eq!(&output, expected);
+
+    // specifically enable algorithm
+    output.clear();
+    let mut builder = DecompressBuilder::none();
+    use CompressionFormat::*;
+    match format {
+        Uncompressed => unreachable!(),
+        #[cfg(feature = "bzip2")]
+        Bzip2 => builder.bzip2(true),
+        #[cfg(feature = "gzip")]
+        Gzip => builder.gzip(true),
+        #[cfg(feature = "xz")]
+        Xz => builder.xz(true),
+        #[cfg(feature = "zstd")]
+        Zstd => builder.zstd(true),
+    };
+    builder
+        .reader(BufReader::with_capacity(32, &*input))
+        .unwrap()
+        .read_to_end(&mut output)
+        .unwrap();
+    assert_eq!(&output, expected);
+
+    // do not enable algorithms
+    output.clear();
+    assert!(matches!(
+        DecompressBuilder::none()
+            .reader(BufReader::with_capacity(32, &*input))
+            .unwrap_err(),
+        DecompressError::UnrecognizedFormat
+    ));
 
     // drop last byte, make sure we notice
     output.clear();
@@ -170,7 +185,7 @@ fn test_case(name: &str, input: &[u8], expected: &[u8]) {
     assert_eq!(&remainder, &[12]);
 }
 
-fn test_concatenated_inputs(cases: &HashMap<&str, &[u8]>) {
+fn test_concatenated_inputs(format: CompressionFormat, cases: &HashMap<&str, &[u8]>) {
     let mut input = Vec::new();
     let mut expected = Vec::new();
     let uncompressed = get_expected("random");
@@ -178,7 +193,7 @@ fn test_concatenated_inputs(cases: &HashMap<&str, &[u8]>) {
         input.extend(*cases.get("random").unwrap());
         expected.extend(&uncompressed);
     }
-    test_case("concatenated random", &input, &expected);
+    test_case(format, "concatenated random", &input, &expected);
 }
 
 fn small_decode<T: Read + FormatReader<BufReader<Cursor<Vec<u8>>>>>(mut d: T, expected: &[u8]) {
