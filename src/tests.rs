@@ -67,7 +67,7 @@ fn uncompressed() {
 fn bzip2() {
     test_set(CompressionFormat::Bzip2, &*BZIP2_FIXTURES);
     // multiple streams may be concatenated; pbzip2 does this
-    test_concatenated_inputs(CompressionFormat::Bzip2, &*BZIP2_FIXTURES);
+    test_concatenated_inputs(&*BZIP2_FIXTURES);
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn xz() {
 fn zstd() {
     test_set(CompressionFormat::Zstd, &*ZSTD_FIXTURES);
     // test with multiple frames
-    test_concatenated_inputs(CompressionFormat::Zstd, &*ZSTD_FIXTURES);
+    test_concatenated_inputs(&*ZSTD_FIXTURES);
     // test the underlying reader one byte at a time
     small_decode(
         ZstdReader::new(small_decode_make(ZSTD_FIXTURES.get("random").unwrap())).unwrap(),
@@ -109,22 +109,17 @@ fn invalid() {
 }
 
 fn test_set(format: CompressionFormat, inputs: &HashMap<&str, &[u8]>) {
+    api_test(format, inputs.get("large").unwrap(), &get_expected("large"));
     for (name, data) in inputs {
-        test_case(format, name, data, &get_expected(name));
+        test_case(name, data, &get_expected(name));
     }
 }
 
-fn test_case(format: CompressionFormat, name: &str, input: &[u8], expected: &[u8]) {
+/// API test.  We repeat this for each available format to increase the
+/// likelihood that the test will run.
+fn api_test(format: CompressionFormat, input: &[u8], expected: &[u8]) {
     let mut input = input.to_vec();
     let mut output = Vec::new();
-    println!("=== {format} {name} ===");
-
-    // successful run
-    DecompressReader::new(BufReader::with_capacity(32, &*input))
-        .unwrap()
-        .read_to_end(&mut output)
-        .unwrap();
-    assert_eq!(&output, expected);
 
     // specifically enable algorithm
     output.clear();
@@ -156,6 +151,20 @@ fn test_case(format: CompressionFormat, name: &str, input: &[u8], expected: &[u8
             .unwrap_err(),
         DecompressError::UnrecognizedFormat
     ));
+}
+
+/// test a format implementation
+fn test_case(name: &str, input: &[u8], expected: &[u8]) {
+    let mut input = input.to_vec();
+    let mut output = Vec::new();
+    println!("=== {name} ===");
+
+    // successful run
+    DecompressReader::new(BufReader::with_capacity(32, &*input))
+        .unwrap()
+        .read_to_end(&mut output)
+        .unwrap();
+    assert_eq!(&output, expected);
 
     // drop last byte, make sure we notice
     output.clear();
@@ -185,7 +194,7 @@ fn test_case(format: CompressionFormat, name: &str, input: &[u8], expected: &[u8
     assert_eq!(&remainder, &[12]);
 }
 
-fn test_concatenated_inputs(format: CompressionFormat, cases: &HashMap<&str, &[u8]>) {
+fn test_concatenated_inputs(cases: &HashMap<&str, &[u8]>) {
     let mut input = Vec::new();
     let mut expected = Vec::new();
     let uncompressed = get_expected("random");
@@ -193,7 +202,7 @@ fn test_concatenated_inputs(format: CompressionFormat, cases: &HashMap<&str, &[u
         input.extend(*cases.get("random").unwrap());
         expected.extend(&uncompressed);
     }
-    test_case(format, "concatenated random", &input, &expected);
+    test_case("concatenated random", &input, &expected);
 }
 
 fn small_decode<T: Read + FormatReader<BufReader<Cursor<Vec<u8>>>>>(mut d: T, expected: &[u8]) {
