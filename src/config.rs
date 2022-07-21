@@ -21,9 +21,13 @@ pub struct DecompressBuilder {
     pub(crate) trailing_data: bool,
     pub(crate) uncompressed: bool,
 
+    #[cfg(feature = "bzip2")]
     pub(crate) bzip2: bool,
+    #[cfg(feature = "gzip")]
     pub(crate) gzip: bool,
+    #[cfg(feature = "xz")]
     pub(crate) xz: bool,
+    #[cfg(feature = "zstd")]
     pub(crate) zstd: bool,
 }
 
@@ -31,9 +35,13 @@ impl DecompressBuilder {
     pub fn new() -> Self {
         Self {
             // uncompressed disabled by default
+            #[cfg(feature = "bzip2")]
             bzip2: true,
+            #[cfg(feature = "gzip")]
             gzip: true,
+            #[cfg(feature = "xz")]
             xz: true,
+            #[cfg(feature = "zstd")]
             zstd: true,
             ..Self::none()
         }
@@ -44,9 +52,13 @@ impl DecompressBuilder {
             trailing_data: false,
             uncompressed: false,
 
+            #[cfg(feature = "bzip2")]
             bzip2: false,
+            #[cfg(feature = "gzip")]
             gzip: false,
+            #[cfg(feature = "xz")]
             xz: false,
+            #[cfg(feature = "zstd")]
             zstd: false,
         }
     }
@@ -65,21 +77,25 @@ impl DecompressBuilder {
         self
     }
 
+    #[cfg(feature = "bzip2")]
     pub fn bzip2(&mut self, enable: bool) -> &mut Self {
         self.bzip2 = enable;
         self
     }
 
+    #[cfg(feature = "gzip")]
     pub fn gzip(&mut self, enable: bool) -> &mut Self {
         self.gzip = enable;
         self
     }
 
+    #[cfg(feature = "xz")]
     pub fn xz(&mut self, enable: bool) -> &mut Self {
         self.xz = enable;
         self
     }
 
+    #[cfg(feature = "zstd")]
     pub fn zstd(&mut self, enable: bool) -> &mut Self {
         self.zstd = enable;
         self
